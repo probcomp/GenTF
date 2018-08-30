@@ -240,11 +240,11 @@ inference_network_update = make_inference_network_update()
     @addr(categorical(letter_dist), "letter")
 end
 
-@gen function dl_proposal()
+@gen function dl_proposal(prev)
 
     # get image from input trace
     image_flat = zeros(1, num_input)
-    image_flat[1,:] = @read("image")[:]
+    image_flat[1,:] = prev["image"][:]
 
     # run inference network
     outputs = @addr(inference_network(image_flat), :network)
@@ -253,12 +253,12 @@ end
     @splice(dl_proposal_predict(outputs[1,:]))
 end
 
-@gen function dl_proposal_batched(batch_size::Int)
+@gen function dl_proposal_batched(prev, batch_size::Int)
 
     # get images from input trace
     images_flat = zeros(Float32, batch_size, width * height)
     for i=1:batch_size
-        images_flat[i,:] = @read(i => "image")[:]
+        images_flat[i,:] = prev[i => "image"][:]
     end
 
     # run inference network in batch

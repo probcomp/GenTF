@@ -25,7 +25,7 @@ function do_inference(input_image, n::Int)
     traces = Vector{Any}(n)
     log_weights = Vector{Float64}(n)
     for i=1:n
-        latents = get_choices(simulate(dl_proposal, (), Some(observations)))
+        latents = get_choices(simulate(dl_proposal, (observations,)))
         constraints = merge!(observations, latents)
         (trace, log_weights[i]) = generate(model, (), constraints)
         traces[i] = get_choices(trace)

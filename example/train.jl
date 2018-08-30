@@ -54,9 +54,9 @@ function train_inference_network(all_traces, num_iter)
         vector_trace = vectorize_internal(traces)
         constraints = DynamicChoiceTrie()
         set_internal_node!(constraints, :predictions, vector_trace)
-        (batched_trace, _) = project(dl_proposal_batched, (batch_size,), constraints, Some(vector_trace))
+        (batched_trace, _) = project(dl_proposal_batched, (vector_trace, batch_size,), constraints)
         score = get_call_record(batched_trace).score / batch_size
-        backprop_params(dl_proposal_batched, batched_trace, nothing, Some(vector_trace))
+        backprop_params(dl_proposal_batched, batched_trace, nothing)
         tf.run(session, inference_network_update)
         println("iter: $iter, score: $(score)")
         if iter % 10 == 0
