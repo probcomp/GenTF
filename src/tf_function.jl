@@ -26,6 +26,7 @@ Gen.get_choices(trace::TensorFlowTrace) = Gen.EmptyChoiceTrie()
 ###########################
 
 const inputs = gensym("inputs")
+const input_types = gensym("input_types")
 const params = gensym("params")
 const outputs = gensym("outputs")
 const update = gensym("update")
@@ -34,6 +35,7 @@ macro input(name, dtype, shape)
     quote
         $(esc(name)) = tf.placeholder($(esc(dtype)); shape=$(esc(shape)), name=String($(QuoteNode(name))))
         push!($(esc(inputs)), $(esc(name)))
+        push!($(esc(input_types)), Array{$(esc(dtype)), length($(esc(shape)))})
     end
 end
 
@@ -65,11 +67,13 @@ macro tf_function(expr)
     @assert expr.head == :block
     lines = [quote
         $(esc(inputs)) = Tensor[]
+        $(esc(input_types)) = Type[]
         $(esc(outputs)) = Tuple{Tensor,Tensor}[]
         $(esc(params)) = Dict{Symbol,ParamDef}()
     end]
     append!(lines, map(esc, expr.args))
-    push!(lines, Expr(:call, :TensorFlowFunction, esc(inputs), esc(outputs), esc(params)))
+    push!(lines, Expr(:call, :TensorFlowFunction,
+        esc(inputs), esc(input_types), esc(outputs), esc(params)))
     Expr(:call, esc(:(tf.as_default)),
         Expr(:(->), Expr(:tuple), Expr(:block, lines...)),
         Expr(:call, esc(:get_def_graph)))#esc(:get_tf_graph)))
@@ -83,6 +87,7 @@ end
 
 struct TensorFlowFunction <: Gen.Generator{Any,TensorFlowTrace}
     inputs::Vector{Tensor}
+    input_types::Vector{Type}
     input_grads::Vector{Tensor}
     output::Tensor
     output_grad::Tensor
@@ -92,8 +97,10 @@ end
 
 Gen.accepts_output_grad(::TensorFlowFunction) = true
 Gen.has_argument_grads(fn::TensorFlowFunction) = (fill(true, length(fn.inputs))...,)
+Gen.get_static_argument_types(fn::TensorFlowFunction) = fn.input_types
 
-function TensorFlowFunction(inputs::Vector{T}, outputs::Vector{Tuple{U,V}},
+function TensorFlowFunction(inputs::Vector{T}, input_types::Vector{Type},
+                            outputs::Vector{Tuple{U,V}},
                             params::Dict{Symbol,ParamDef}) where {T,U,V}
     if length(outputs) != 1
         error("Exactly one output is allowed")
@@ -114,7 +121,7 @@ function TensorFlowFunction(inputs::Vector{T}, outputs::Vector{Tuple{U,V}},
     # input gradient
     input_grads = tf.gradients([output], inputs, [output_grad])
 
-    TensorFlowFunction(inputs, input_grads, output, output_grad, params, update_grads)
+    TensorFlowFunction(inputs, input_types, input_grads, output, output_grad, params, update_grads)
 end
 
 get_inputs(tf_func::TensorFlowFunction) = tf_func.inputs
