@@ -169,7 +169,7 @@ end
 # simulate #
 ############
 
-function Gen.simulate(tf_func::TensorFlowFunction, args, read_trace)
+function Gen.simulate(tf_func::TensorFlowFunction, args)
     retval = exec_tf_function(tf_func, args)
     trace = TensorFlowTrace(Gen.CallRecord{Any}(0., retval, args))
     trace
@@ -186,11 +186,21 @@ function check_empty_constraints(constraints)
     end
 end
 
-function Gen.generate(fn_func::TensorFlowFunction, args, constraints, read_trace)
+function Gen.generate(fn_func::TensorFlowFunction, args, constraints)
     check_empty_constraints(constraints)
     retval = exec_tf_function(tf_func, args)
     trace = TensorFlowTrace(CallRecord{Any}(0., retval, args))
     (trace, 0.)
+end
+
+##########
+# assess #
+##########
+
+function Gen.assess(tf_func::TensorFlowFunction, args, constraints)
+    check_empty_constraints(constraints)
+    retval = exec_tf_function(tf_func, args)
+    TensorFlowTrace(CallRecord{Any}(0., retval, args))
 end
 
 
@@ -198,7 +208,7 @@ end
 # project #
 ###########
 
-function Gen.project(tf_func::TensorFlowFunction, args, constraints, read_trace=nothing)
+function Gen.project(tf_func::TensorFlowFunction, args, constraints)
     check_empty_constraints(constraints)
     retval = exec_tf_function(tf_func, args)
     trace = TensorFlowTrace(CallRecord{Any}(0., retval, args))
@@ -210,7 +220,7 @@ end
 # backprop_params #
 ###################
 
-function Gen.backprop_params(tf_func::TensorFlowFunction, trace::TensorFlowTrace, retval_grad, read_trace=nothing)
+function Gen.backprop_params(tf_func::TensorFlowFunction, trace::TensorFlowTrace, retval_grad)
     call = get_call_record(trace)
     input_grads = grad(tf_func, retval_grad, call.args)
     input_grads
