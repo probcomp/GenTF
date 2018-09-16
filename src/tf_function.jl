@@ -72,15 +72,15 @@ macro tf_function(expr)
         local $(esc(input_types))
         local $(esc(outputs))
         local $(esc(params))
-        #try
+        try
             $(esc(inputs)) = Tensor[]
             $(esc(input_types)) = Type[]
             $(esc(outputs)) = Tuple{Tensor,Tensor}[]
             $(esc(params)) = Dict{Symbol,ParamDef}()
             $(esc(expr))
-        #finally
+        finally
             TensorFlow.set_def_graph(old_def)
-        #end
+        end
         TensorFlowFunction($(esc(inputs)), $(esc(input_types)), $(esc(outputs)),
                            $(esc(params)), graph)
     end
