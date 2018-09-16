@@ -157,9 +157,6 @@ function init_session!(tf_func::TensorFlowFunction)
     session
 end
 
-export get_graph, get_session
-export init_session!
-
 function zero_grad(tf_func::TensorFlowFunction, name::Symbol)
     as_default(get_graph(tf_func)) do
         tf.assign(tf_func.params[name].grad, tf_func.params[name].zero)
@@ -259,6 +256,8 @@ end
 export @input, @output
 export @tf_function
 export TensorFlowFunction
+export get_graph, get_session
+export init_session!
 export get_param_names
 export get_param_val
 export get_param_grad
