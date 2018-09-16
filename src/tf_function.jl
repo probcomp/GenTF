@@ -4,8 +4,6 @@ import Gen: @param, get_param_grad # TODO use the same function names as for Gen
 using TensorFlow
 tf = TensorFlow
 
-function get_session end
-
 # TODO allow multiple output tensors (which become a tuple of arrays in Julia)
 
 ###################
@@ -65,18 +63,27 @@ end
 
 macro tf_function(expr)
     @assert expr.head == :block
-    lines = [quote
-        $(esc(inputs)) = Tensor[]
-        $(esc(input_types)) = Type[]
-        $(esc(outputs)) = Tuple{Tensor,Tensor}[]
-        $(esc(params)) = Dict{Symbol,ParamDef}()
-    end]
-    append!(lines, map(esc, expr.args))
-    push!(lines, Expr(:call, :TensorFlowFunction,
-        esc(inputs), esc(input_types), esc(outputs), esc(params)))
-    Expr(:call, esc(:(tf.as_default)),
-        Expr(:(->), Expr(:tuple), Expr(:block, lines...)),
-        Expr(:call, esc(:get_def_graph)))#esc(:get_tf_graph)))
+    quote
+        # each TensorFlow function has its own graph (and session)
+        graph = Graph()
+        old_def = TensorFlow.get_def_graph()
+        TensorFlow.set_def_graph(graph)
+        local $(esc(inputs))
+        local $(esc(input_types))
+        local $(esc(outputs))
+        local $(esc(params))
+        #try
+            $(esc(inputs)) = Tensor[]
+            $(esc(input_types)) = Type[]
+            $(esc(outputs)) = Tuple{Tensor,Tensor}[]
+            $(esc(params)) = Dict{Symbol,ParamDef}()
+            $(esc(expr))
+        #finally
+            TensorFlow.set_def_graph(old_def)
+        #end
+        TensorFlowFunction($(esc(inputs)), $(esc(input_types)), $(esc(outputs)),
+                           $(esc(params)), graph)
+    end
 end
 
 struct ParamDef
@@ -85,7 +92,7 @@ struct ParamDef
     zero::Array
 end
 
-struct TensorFlowFunction <: Gen.Generator{Any,TensorFlowTrace}
+mutable struct TensorFlowFunction <: Gen.Generator{Any,TensorFlowTrace}
     inputs::Vector{Tensor}
     input_types::Vector{Type}
     input_grads::Vector{Tensor}
@@ -93,6 +100,8 @@ struct TensorFlowFunction <: Gen.Generator{Any,TensorFlowTrace}
     output_grad::Tensor
     params::Dict{Symbol,ParamDef}
     update_grads::Tensor
+    graph::Graph
+    session::Union{Session,Nothing}
 end
 
 Gen.accepts_output_grad(::TensorFlowFunction) = true
@@ -101,27 +110,34 @@ Gen.get_static_argument_types(fn::TensorFlowFunction) = fn.input_types
 
 function TensorFlowFunction(inputs::Vector{T}, input_types::Vector{Type},
                             outputs::Vector{Tuple{U,V}},
-                            params::Dict{Symbol,ParamDef}) where {T,U,V}
+                            params::Dict{Symbol,ParamDef}, graph::Graph) where {T,U,V}
     if length(outputs) != 1
-        error("Exactly one output is allowed")
+        error("Exactly one output is allowed, but $(length(outputs)) outputs were declared")
     end
     output, output_grad = outputs[1]
 
     # accumulate parameter gradient
-    param_names = collect(keys(params))
-    param_vars = [params[name].value for name in param_names]
-    param_grads = [params[name].grad for name in param_names]
-    param_grad_increments = tf.gradients([output], param_vars, [output_grad])
-    update_grads_list = []
-    for (grad, grad_increment) in zip(param_grads, param_grad_increments)
-        push!(update_grads_list, tf.assign_add(grad, grad_increment))
+    local input_grads
+    local update_grads
+    as_default(graph) do
+        param_names = collect(keys(params))
+        param_vars = [params[name].value for name in param_names]
+        param_grads = [params[name].grad for name in param_names]
+        param_grad_increments = tf.gradients([output], param_vars, [output_grad])
+        update_grads_list = []
+        for (grad, grad_increment) in zip(param_grads, param_grad_increments)
+            push!(update_grads_list, tf.assign_add(grad, grad_increment))
+        end
+        update_grads = tf.group(update_grads_list...)
+
+        # input gradient
+        input_grads = tf.gradients([output], inputs, [output_grad])
     end
-    update_grads = tf.group(update_grads_list...)
 
-    # input gradient
-    input_grads = tf.gradients([output], inputs, [output_grad])
-
-    TensorFlowFunction(inputs, input_types, input_grads, output, output_grad, params, update_grads)
+    TensorFlowFunction(inputs, input_types, input_grads,
+                       output, output_grad,
+                       params, update_grads,
+                       graph, nothing)
 end
 
 get_inputs(tf_func::TensorFlowFunction) = tf_func.inputs
@@ -131,9 +147,23 @@ get_output_grad(tf_func::TensorFlowFunction) = tf_func.output_grad
 get_param_names(tf_func::TensorFlowFunction) = keys(tf_func.params)
 get_param_val(tf_func::TensorFlowFunction, name::Symbol) = tf_func.params[name].value
 get_param_grad(tf_func::TensorFlowFunction, name::Symbol) = tf_func.params[name].grad
+get_graph(tf_func::TensorFlowFunction) = tf_func.graph
+get_session(tf_func::TensorFlowFunction) = tf_func.session::Session
+
+function init_session!(tf_func::TensorFlowFunction)
+    session = Session(tf_func.graph)
+    tf_func.session = session
+    tf.run(session, tf.global_variables_initializer())
+    session
+end
+
+export get_graph, get_session
+export init_session!
 
 function zero_grad(tf_func::TensorFlowFunction, name::Symbol)
-    tf.assign(tf_func.params[name].grad, tf_func.params[name].zero)
+    as_default(get_graph(tf_func)) do
+        tf.assign(tf_func.params[name].grad, tf_func.params[name].zero)
+    end
 end
 
 function exec_tf_function(tf_func::TensorFlowFunction, args)
@@ -141,7 +171,7 @@ function exec_tf_function(tf_func::TensorFlowFunction, args)
     for (input, arg) in zip(get_inputs(tf_func), args)
         feed_dict[input] = arg
     end
-    (output_val,) = run(get_session(), [get_output(tf_func)], feed_dict)
+    (output_val,) = run(get_session(tf_func), [get_output(tf_func)], feed_dict)
     convert(Array{Float64}, output_val)
 end
 
@@ -154,11 +184,11 @@ function grad(tf_func::TensorFlowFunction, output_grad_val, args)
 
     # get the gradient with respect to @inputs
     input_grads = get_input_grads(tf_func)
-    input_grad_vals = run(get_session(), input_grads, feed_dict)
+    input_grad_vals = run(get_session(tf_func), input_grads, feed_dict)
     @assert length(input_grad_vals) == length(input_grads)
     
     # update the gradient accumulators for @params
-    run(get_session(), tf_func.update_grads, feed_dict)
+    run(get_session(tf_func), tf_func.update_grads, feed_dict)
 
     # return the input gradient
     map((arr::Array{Float32}) -> convert(Array{Float64}, arr), input_grad_vals)
