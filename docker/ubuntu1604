@@ -5,6 +5,7 @@ RUN             apt-get update -qq && apt-get install -qq \
                         build-essential \
                         wget \
                         git \
+			curl \
                         ; # end of packages
 
 RUN             mkdir /julia
@@ -25,14 +26,18 @@ RUN             cd /julia && \
 ENV             PATH="$PATH:/julia/bin"
 
 
-# add credentials on build
+# obtain Gen
 ARG             PROBCOMP_GH_BOT_SSH_PRIVATE_KEY
 RUN             mkdir /root/.ssh/
 RUN             echo "${PROBCOMP_GH_BOT_SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
-RUN             chmod a-rwx /root/.ssh/id_rsa
-RUN             chmod g-rwx /root/.ssh/id_rsa
-
-ADD             ./github_public_key /root/.ssh/known_hosts
+RUN             chmod ag-rwx /root/.ssh/id_rsa
+ADD             ./docker/github_public_key /root/.ssh/known_hosts
 RUN             git clone git@github.com:probcomp/Gen.git
 RUN             julia -e 'using Pkg; Pkg.develop(PackageSpec(path="/Gen"))'
-RUN				julia -e 'Pkg.test("Gen")'
+RUN		julia -e 'Pkg.test("Gen")'
+
+# build and test GenTF
+ADD		. /GenTF
+RUN             julia -e 'ENV["PYTHON"] = ""; Pkg.develop(Pkg.PackageSpec(path="/GenTF"))'
+RUN		julia -e 'ENV["PYTHON"] = ""; Pkg.build("GenTF")'
+RUN		julia -e 'Pkg.test("GenTF")'
