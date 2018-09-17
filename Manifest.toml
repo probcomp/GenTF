@@ -110,7 +110,9 @@ version = "0.4.0"
 
 [[Gen]]
 deps = ["Distributions", "FunctionalCollections", "JSON", "LinearAlgebra", "ReverseDiff", "SpecialFunctions"]
-path = "/home/marcoct/dev/Gen"
+git-tree-sha1 = "50f31e5bf494d8f410adbb6087738cc06440895a"
+repo-rev = "master"
+repo-url = "git@github.com:probcomp/Gen.git"
 uuid = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"
 version = "0.1.0"
 
