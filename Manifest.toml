@@ -50,9 +50,9 @@ version = "1.0.1"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "REPL", "Random", "Serialization", "Test"]
-git-tree-sha1 = "2afbbd0294306b0b74a753c196be50b35edb625c"
+git-tree-sha1 = "5162c360c52e9265e0bfafb71415c31f746f7e04"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.11.1"
+version = "0.12.0"
 
 [[Dates]]
 deps = ["Printf"]
@@ -79,10 +79,10 @@ deps = ["LinearAlgebra", "Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[Distributions]]
-deps = ["Distributed", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "c43dc10a52598ad76d61f8907b3b30f159ca146f"
+deps = ["Distributed", "LinearAlgebra", "PDMats", "Pkg", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
+git-tree-sha1 = "c24e9b6500c037673f0241a2783472b8c3d080c7"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.16.2"
+version = "0.16.4"
 
 [[FileIO]]
 deps = ["Pkg", "Random", "Test"]
@@ -92,9 +92,9 @@ version = "1.0.1"
 
 [[ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "InteractiveUtils", "LinearAlgebra", "NaNMath", "Pkg", "Random", "SparseArrays", "SpecialFunctions", "StaticArrays", "Test"]
-git-tree-sha1 = "0dd11038da4efce9ce457b1cf47a52eaf6251bd3"
+git-tree-sha1 = "8425a7d4e060bc2ded32d090bce910a187d6cce7"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.8.5"
+version = "0.9.0"
 
 [[FunctionWrappers]]
 deps = ["Compat", "Pkg"]
@@ -109,7 +109,7 @@ uuid = "de31a74c-ac4f-5751-b3fd-e18cd04993ca"
 version = "0.4.0"
 
 [[Gen]]
-deps = ["Distributions", "FunctionalCollections", "JSON", "ReverseDiff", "SpecialFunctions"]
+deps = ["Distributions", "FunctionalCollections", "JSON", "LinearAlgebra", "ReverseDiff", "SpecialFunctions"]
 path = "/home/marcoct/dev/Gen"
 uuid = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"
 version = "0.1.0"
@@ -120,9 +120,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[JLD2]]
 deps = ["CodecZlib", "DataStructures", "FileIO", "LinearAlgebra", "Mmap", "Printf", "Random", "Test"]
-git-tree-sha1 = "8f0b471c05fd5c256932bd08bb71729cbb7b966f"
+git-tree-sha1 = "3ba90ff93e1d5b9b2103588051c2d349fae54dac"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.1.1"
+version = "0.1.2"
 
 [[JSON]]
 deps = ["Dates", "Distributed", "Mmap", "Pkg", "Sockets", "Test", "Unicode"]
@@ -132,9 +132,9 @@ version = "0.19.0"
 
 [[Juno]]
 deps = ["Base64", "Logging", "Media", "Profile", "Test"]
-git-tree-sha1 = "f2d553719755f00f602cb226689c0bcfee023a1d"
+git-tree-sha1 = "3c29a199713e7ec62cfdc11f44d7760219d5f658"
 uuid = "e5e0dc1b-0480-54bc-9374-aad01c23163d"
-version = "0.5.2"
+version = "0.5.3"
 
 [[LibGit2]]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
@@ -186,12 +186,6 @@ git-tree-sha1 = "ce3b85e484a5d4c71dd5316215069311135fa9f2"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 version = "0.3.2"
 
-[[Nullables]]
-deps = ["Compat", "Pkg"]
-git-tree-sha1 = "ae1a63457e14554df2159b0b028f48536125092d"
-uuid = "4d1e1d77-625e-5b40-9113-a560ec7a8ecd"
-version = "0.0.8"
-
 [[PDMats]]
 deps = ["Arpack", "LinearAlgebra", "SparseArrays", "SuiteSparse", "Test"]
 git-tree-sha1 = "9e3e7a5c9b8cfdba8c01a1bcae38fe0144936fda"
@@ -218,15 +212,15 @@ version = "0.6.1"
 
 [[PyCall]]
 deps = ["Compat", "Conda", "MacroTools", "Statistics", "VersionParsing"]
-git-tree-sha1 = "993d80a2cfd0fc4b2acc698370a4f9761b27cd9e"
+git-tree-sha1 = "f56428481fd0caf01cc8ecd2a0892fdaf8fddd50"
 uuid = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
-version = "1.18.2"
+version = "1.18.4"
 
 [[QuadGK]]
 deps = ["DataStructures", "LinearAlgebra", "Test"]
-git-tree-sha1 = "7d61ca207f021be6574b365a1a077bea04935f19"
+git-tree-sha1 = "7e8dff9c205f36eceaf6e62a43ff851637ca45fc"
 uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-version = "2.0.1"
+version = "2.0.2"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]
@@ -304,10 +298,10 @@ deps = ["Libdl", "LinearAlgebra", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 
 [[TensorFlow]]
-deps = ["AutoHashEquals", "Compat", "Conda", "Distributed", "Distributions", "FileIO", "InteractiveUtils", "JLD2", "Juno", "Libdl", "LinearAlgebra", "MNIST", "MacroTools", "Nullables", "Pkg", "Printf", "ProtoBuf", "PyCall", "Random", "SpecialFunctions", "Statistics", "StatsFuns", "Test"]
-path = "/home/marcoct/dev/TensorFlow.jl"
+deps = ["AutoHashEquals", "Compat", "Conda", "Distributed", "Distributions", "FileIO", "InteractiveUtils", "JLD2", "Juno", "Libdl", "LinearAlgebra", "MNIST", "MacroTools", "Pkg", "Printf", "ProtoBuf", "PyCall", "Random", "SpecialFunctions", "Statistics", "StatsFuns", "Test"]
+git-tree-sha1 = "d68b7a24060aacf48d3b4fbcf1515367c3ce5f99"
 uuid = "1d978283-2c37-5f34-9a8e-e9c0ece82495"
-version = "0.9.1+"
+version = "0.10.1"
 
 [[Test]]
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
