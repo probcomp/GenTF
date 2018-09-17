@@ -25,15 +25,15 @@ RUN             cd /julia && \
      gunzip -c < "$JULIA_TGZ" | tar -x -f - --strip-components 1
 ENV             PATH="$PATH:/julia/bin"
 
-
 # obtain Gen
 ARG             PROBCOMP_GH_BOT_SSH_PRIVATE_KEY
 RUN             mkdir /root/.ssh/
 RUN             echo "${PROBCOMP_GH_BOT_SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
 RUN             chmod ag-rwx /root/.ssh/id_rsa
 ADD             ./docker/github_public_key /root/.ssh/known_hosts
-RUN             julia -e 'Pkg.add(Pkg.PackageSpec(Pkg.Types.GitRepo("git@github.com:probcomp/Gen.git")))'
-RUN		        julia -e 'Pkg.test("Gen")'
+RUN             git clone git@github.com:probcomp/Gen.git
+RUN             julia -e 'using Pkg; Pkg.develop(PackageSpec(path="/Gen"))'
+RUN julia -e 'Pkg.test("Gen")'
 
 # build and test GenTF
 ADD		. /GenTF
