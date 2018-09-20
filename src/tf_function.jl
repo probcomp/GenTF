@@ -172,7 +172,7 @@ function exec_tf_function(tf_func::TensorFlowFunction, args)
     convert(Array{Float64}, output_val)
 end
 
-function grad(tf_func::TensorFlowFunction, output_grad_val, args)
+function gradient(tf_func::TensorFlowFunction, output_grad_val, args)
     feed_dict = Dict{Tensor, Array{Float32}}()
     for (input, arg) in zip(get_inputs(tf_func), args)
         feed_dict[input] = arg
@@ -249,7 +249,7 @@ end
 
 function Gen.backprop_params(tf_func::TensorFlowFunction, trace::TensorFlowTrace, retval_grad)
     call = get_call_record(trace)
-    input_grads = grad(tf_func, retval_grad, call.args)
+    input_grads = gradient(tf_func, retval_grad, call.args)
     input_grads
 end
 
@@ -262,3 +262,5 @@ export get_param_names
 export get_param_val
 export get_param_grad
 export zero_grad
+export exec_tf_function
+export gradient
