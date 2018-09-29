@@ -18,17 +18,17 @@ GenTF.get_session() = session
 
 function do_inference(input_image, n::Int)
 
-    observations = DynamicChoiceTrie()
+    observations = DynamicAssignment()
     observations["image"] = input_image
 
     # do importance sampling
     traces = Vector{Any}(n)
     log_weights = Vector{Float64}(n)
     for i=1:n
-        latents = get_choices(simulate(dl_proposal, (observations,)))
-        constraints = merge!(observations, latents)
+        latents = get_assignment(simulate(dl_proposal, (observations,)))
+        constraints = merge!(observations, latents) # TODO merge()? 
         (trace, log_weights[i]) = generate(model, (), constraints)
-        traces[i] = get_choices(trace)
+        traces[i] = get_assignment(trace)
     end
     dist = exp.(log_weights .- logsumexp(log_weights))
     idx = random(categorical, dist)

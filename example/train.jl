@@ -24,7 +24,7 @@ const num_train = 100
 function generate_training_data()
     traces = Vector{Any}(undef, num_train)
     for i=1:num_train
-        traces[i] = get_choices(simulate(model, ()))
+        traces[i] = get_assignment(simulate(model, ()))
         @assert !isempty(traces[i])
         if i % 100 == 0
             println("$i of $num_train")
@@ -52,7 +52,7 @@ function train_inference_network(all_traces, num_iter)
         minibatch = Random.randperm(num_train)[1:batch_size]
         traces = all_traces[minibatch]
         vector_trace = vectorize_internal(traces)
-        constraints = DynamicChoiceTrie()
+        constraints = DynamicAssignment()
         set_internal_node!(constraints, :predictions, vector_trace)
         (batched_trace, _) = project(dl_proposal_batched, (vector_trace, batch_size,), constraints)
         score = get_call_record(batched_trace).score / batch_size

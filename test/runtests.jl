@@ -18,7 +18,7 @@ using Test
     foo_session = init_session!(foo)
 
     x = rand(Float32, 3)
-    trace = assess(foo, (x,), EmptyChoiceTrie())
+    trace = assess(foo, (x,), EmptyAssignment())
     y = get_call_record(trace).retval
     @test isapprox(y, init_W * x)
     y_grad = rand(Float32, 2)
@@ -62,7 +62,7 @@ end
 
     xs = Float64[-2, -1, 1, 2]
     ys = -2 * xs + 1
-    constraints = DynamicChoiceTrie()
+    constraints = DynamicAssignment()
     for (i, y) in enumerate(ys)
         constraints["y-$i"] = y
     end

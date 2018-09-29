@@ -16,7 +16,7 @@ end
 
 Gen.get_call_record(trace::TensorFlowTrace) = trace.call
 Gen.has_choices(trace::TensorFlowTrace) = false
-Gen.get_choices(trace::TensorFlowTrace) = Gen.EmptyChoiceTrie()
+Gen.get_assignment(trace::TensorFlowTrace) = Gen.EmptyAssignment()
 
 
 ###########################
@@ -239,7 +239,7 @@ function Gen.project(tf_func::TensorFlowFunction, args, constraints)
     check_empty_constraints(constraints)
     retval = exec_tf_function(tf_func, args)
     trace = TensorFlowTrace(CallRecord{Any}(0., retval, args))
-    (trace, EmptyChoiceTrie())
+    (trace, EmptyAssignment())
 end
 
 
