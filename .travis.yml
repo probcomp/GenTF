@@ -3,7 +3,6 @@
 
 language: julia
 os:
-    - os x
     - linux
 julia:
   - 1.0
