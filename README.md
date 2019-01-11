@@ -1,4 +1,4 @@
-# GenTF
+# GenTF [![Build Status](https://travis-ci.org/probcomp/GenTF.svg?branch=master)](https://travis-ci.org/probcomp/GenTF)
 
 ## Installing for development
 
