@@ -14,17 +14,19 @@ using Test
         @output Float32 y
     end
     
-    Gen.load_generated_functions()
     foo_session = init_session!(foo)
 
     x = rand(Float32, 3)
-    trace = assess(foo, (x,), EmptyAssignment())
-    y = get_call_record(trace).retval
+    (trace, weight) = initialize(foo, (x,), EmptyAssignment())
+    @test weight == 0.
+    y = get_retval(trace)
     @test isapprox(y, init_W * x)
     y_grad = rand(Float32, 2)
-    (x_grad,) = backprop_params(foo, trace, y_grad)
+
+    (x_grad,) = backprop_params(trace, y_grad)
     @test isapprox(x_grad, init_W' * y_grad)
-    W_grad = tf.run(foo_session, get_param_grad(foo, :W))
+
+    W_grad = tf.run(foo_session, GenTF.get_param_grad(foo, :W))
     @test isapprox(W_grad, y_grad * x')
 end
 
@@ -50,28 +52,27 @@ end
 
     update = tf.as_default(GenTF.get_graph(tf_func)) do 
         w_var = get_param_val(tf_func, :w)
-        w_grad = get_param_grad(tf_func, :w)
+        w_grad = GenTF.get_param_grad(tf_func, :w)
         gradient_step = tf.assign_add(w_var, tf.mul(w_grad, tf.constant(0.01, dtype=Float32)))
         tf.with_op_control([gradient_step]) do
             zero_grad(tf_func, :w)
         end
     end
 
-    Gen.load_generated_functions()
     tf_func_session = init_session!(tf_func)
 
     xs = Float64[-2, -1, 1, 2]
-    ys = -2 * xs + 1
+    ys = -2 * xs .+ 1
     constraints = DynamicAssignment()
     for (i, y) in enumerate(ys)
         constraints["y-$i"] = y
     end
     for iter=1:200
-        trace = assess(model, (xs,), constraints)
-        score = get_call_record(trace).score
+        (trace, _) = initialize(model, (xs,), constraints)
+        score = get_score(trace)
         w = tf.run(tf_func_session, get_param_val(tf_func, :w))
-        backprop_params(model, trace, nothing)
-        w_grad = tf.run(tf_func_session, get_param_grad(tf_func, :w))
+        backprop_params(trace, nothing)
+        w_grad = tf.run(tf_func_session, GenTF.get_param_grad(tf_func, :w))
         tf.run(tf_func_session, update)
     end
     w = tf.run(tf_func_session, get_param_val(tf_func, :w))

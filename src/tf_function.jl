@@ -1,5 +1,6 @@
-using Gen
-import Gen: @param, get_param_grad # TODO use the same function names as for GenLite params?
+import Gen
+import Gen: @param
+using Gen: GenerativeFunction, Assignment, EmptyAssignment, AddressSet, DefaultRetDiff
 
 using TensorFlow
 tf = TensorFlow
@@ -11,13 +12,16 @@ tf = TensorFlow
 ###################
 
 struct TensorFlowTrace
-    call::CallRecord{Any}
+    gen_fn::GenerativeFunction
+    args::Tuple
+    retval::Any
 end
 
-Gen.get_call_record(trace::TensorFlowTrace) = trace.call
-Gen.has_choices(trace::TensorFlowTrace) = false
-Gen.get_assignment(trace::TensorFlowTrace) = Gen.EmptyAssignment()
-
+Gen.get_args(trace::TensorFlowTrace) = trace.args
+Gen.get_retval(trace::TensorFlowTrace) = trace.retval
+Gen.get_assmt(::TensorFlowTrace) = EmptyAssignment()
+Gen.get_score(::TensorFlowTrace) = 0.
+Gen.get_gen_fn(trace::TensorFlowTrace) = trace.gen_fn
 
 ###########################
 # TensorFlow function DSL #
@@ -92,7 +96,7 @@ struct ParamDef
     zero::Array
 end
 
-mutable struct TensorFlowFunction <: Gen.Generator{Any,TensorFlowTrace}
+mutable struct TensorFlowFunction <: Gen.GenerativeFunction{Any,TensorFlowTrace}
     inputs::Vector{Tensor}
     input_types::Vector{Type}
     input_grads::Vector{Tensor}
@@ -104,9 +108,8 @@ mutable struct TensorFlowFunction <: Gen.Generator{Any,TensorFlowTrace}
     session::Union{Session,Nothing}
 end
 
-Gen.accepts_output_grad(::TensorFlowFunction) = true
 Gen.has_argument_grads(fn::TensorFlowFunction) = (fill(true, length(fn.inputs))...,)
-Gen.get_static_argument_types(fn::TensorFlowFunction) = fn.input_types
+Gen.accepts_output_grad(fn::TensorFlowFunction) = true
 
 function TensorFlowFunction(inputs::Vector{T}, input_types::Vector{Type},
                             outputs::Vector{Tuple{U,V}},
@@ -140,127 +143,122 @@ function TensorFlowFunction(inputs::Vector{T}, input_types::Vector{Type},
                        graph, nothing)
 end
 
-get_inputs(tf_func::TensorFlowFunction) = tf_func.inputs
-get_input_grads(tf_func::TensorFlowFunction) = tf_func.input_grads
-get_output(tf_func::TensorFlowFunction) = tf_func.output
-get_output_grad(tf_func::TensorFlowFunction) = tf_func.output_grad
-get_param_names(tf_func::TensorFlowFunction) = keys(tf_func.params)
-get_param_val(tf_func::TensorFlowFunction, name::Symbol) = tf_func.params[name].value
-get_param_grad(tf_func::TensorFlowFunction, name::Symbol) = tf_func.params[name].grad
-get_graph(tf_func::TensorFlowFunction) = tf_func.graph
-get_session(tf_func::TensorFlowFunction) = tf_func.session::Session
+get_inputs(gen_fn::TensorFlowFunction) = gen_fn.inputs
+get_input_grads(gen_fn::TensorFlowFunction) = gen_fn.input_grads
+get_output(gen_fn::TensorFlowFunction) = gen_fn.output
+get_output_grad(gen_fn::TensorFlowFunction) = gen_fn.output_grad
+get_param_names(gen_fn::TensorFlowFunction) = keys(gen_fn.params)
+get_param_val(gen_fn::TensorFlowFunction, name::Symbol) = gen_fn.params[name].value
+get_param_grad(gen_fn::TensorFlowFunction, name::Symbol) = gen_fn.params[name].grad
+get_graph(gen_fn::TensorFlowFunction) = gen_fn.graph
+get_session(gen_fn::TensorFlowFunction) = gen_fn.session::Session
 
-function init_session!(tf_func::TensorFlowFunction)
-    session = Session(tf_func.graph)
-    tf_func.session = session
+function init_session!(gen_fn::TensorFlowFunction)
+    session = Session(gen_fn.graph)
+    gen_fn.session = session
     tf.run(session, tf.global_variables_initializer())
     session
 end
 
-function zero_grad(tf_func::TensorFlowFunction, name::Symbol)
-    as_default(get_graph(tf_func)) do
-        tf.assign(tf_func.params[name].grad, tf_func.params[name].zero)
+function zero_grad(gen_fn::TensorFlowFunction, name::Symbol)
+    as_default(get_graph(gen_fn)) do
+        tf.assign(gen_fn.params[name].grad, gen_fn.params[name].zero)
     end
 end
 
-function exec_tf_function(tf_func::TensorFlowFunction, args)
+function exec_tf_function(gen_fn::TensorFlowFunction, args)
     feed_dict = Dict{Tensor,Array{Float32}}()
-    for (input, arg) in zip(get_inputs(tf_func), args)
+    for (input, arg) in zip(get_inputs(gen_fn), args)
         feed_dict[input] = arg
     end
-    (output_val,) = run(get_session(tf_func), [get_output(tf_func)], feed_dict)
+    (output_val,) = tf.run(get_session(gen_fn), [get_output(gen_fn)], feed_dict)
     convert(Array{Float64}, output_val)
 end
 
-function gradient(tf_func::TensorFlowFunction, output_grad_val, args)
+function gradient(gen_fn::TensorFlowFunction, output_grad_val, args)
     feed_dict = Dict{Tensor, Array{Float32}}()
-    for (input, arg) in zip(get_inputs(tf_func), args)
+    for (input, arg) in zip(get_inputs(gen_fn), args)
         feed_dict[input] = arg
     end
-    feed_dict[get_output_grad(tf_func)] = convert(Array{Float32},output_grad_val)
+    feed_dict[get_output_grad(gen_fn)] = convert(Array{Float32},output_grad_val)
 
     # get the gradient with respect to @inputs
-    input_grads = get_input_grads(tf_func)
-    input_grad_vals = run(get_session(tf_func), input_grads, feed_dict)
+    input_grads = get_input_grads(gen_fn)
+    input_grad_vals = tf.run(get_session(gen_fn), input_grads, feed_dict)
     @assert length(input_grad_vals) == length(input_grads)
     
     # update the gradient accumulators for @params
-    run(get_session(tf_func), tf_func.update_grads, feed_dict)
+    tf.run(get_session(gen_fn), gen_fn.update_grads, feed_dict)
 
     # return the input gradient
     map((arr::Array{Float32}) -> convert(Array{Float64}, arr), input_grad_vals)
 end
 
 
-############
-# simulate #
-############
-
-function Gen.simulate(tf_func::TensorFlowFunction, args)
-    retval = exec_tf_function(tf_func, args)
-    trace = TensorFlowTrace(Gen.CallRecord{Any}(0., retval, args))
-    trace
-end
-
-
-############
-# generate #
-############
+#################################
+# generative function interface #
+#################################
 
 function check_empty_constraints(constraints)
     if !isempty(constraints)
-        error("Attempted to constrain random choice(s) that do not exist")
+        error("TensorFlow function got non-empty assignment: $assmt")
     end
 end
 
-function Gen.generate(fn_func::TensorFlowFunction, args, constraints)
+function Gen.propose(gen_fn::TensorFlowFunction, args)
+    retval = exec_tf_function(gen_fn, args)
+    (EmptyAssignment(), 0., retval)
+end
+
+function Gen.assess(gen_fn::TensorFlowFunction, args, assmt)
+    check_empty_constraints(assmt)
+    retval = exec_tf_function(gen_fn, args)
+    (0., retval)
+end
+
+function Gen.initialize(gen_fn::TensorFlowFunction, args::Tuple, constraints::Assignment)
     check_empty_constraints(constraints)
-    retval = exec_tf_function(tf_func, args)
-    trace = TensorFlowTrace(CallRecord{Any}(0., retval, args))
+    retval = exec_tf_function(gen_fn, args)
+    trace = TensorFlowTrace(gen_fn, args, retval)
     (trace, 0.)
 end
 
-##########
-# assess #
-##########
+Gen.project(::TensorFlowTrace, selection::AddressSet) = 0.
 
-function Gen.assess(tf_func::TensorFlowFunction, args, constraints)
-    check_empty_constraints(constraints)
-    retval = exec_tf_function(tf_func, args)
-    TensorFlowTrace(CallRecord{Any}(0., retval, args))
+function Gen.force_update(trace::TensorFlowTrace, args::Tuple, argdiff, assmt::Assignment)
+    (trace, 0., EmptyAssignment(), DefaultRetDiff())
 end
 
-
-###########
-# project #
-###########
-
-function Gen.project(tf_func::TensorFlowFunction, args, constraints)
-    check_empty_constraints(constraints)
-    retval = exec_tf_function(tf_func, args)
-    trace = TensorFlowTrace(CallRecord{Any}(0., retval, args))
-    (trace, EmptyAssignment())
+function Gen.fix_update(trace::TensorFlowTrace, args::Tuple, argdiff, assmt::Assignment)
+    (trace, 0., EmptyAssignment(), DefaultRetDiff())
 end
 
+function Gen.free_update(trace::TensorFlowTrace, args::Tuple, argdiff, selection::AddressSet)
+    if !isempty(selection)
+        error("TensorFlow function got non-empty selection")
+    end
+    (trace, 0., DefaultRetDiff())
+end
 
-###################
-# backprop_params #
-###################
+function Gen.backprop_trace(trace::TensorFlowTrace, selection::AddressSet, retval_grad)
+    if !isempty(selection)
+        error("TensorFlow function got non-empty selection")
+    end
+    input_grads = gradient(gen_fn, retval_grad, Gen.get_args(trace))
+    (input_grads, EmptyAssignment(), EmptyAssignment())
+end
 
-function Gen.backprop_params(tf_func::TensorFlowFunction, trace::TensorFlowTrace, retval_grad)
-    call = get_call_record(trace)
-    input_grads = gradient(tf_func, retval_grad, call.args)
+function Gen.backprop_params(trace::TensorFlowTrace, retval_grad)
+    gen_fn = trace.gen_fn
+    input_grads = gradient(gen_fn, retval_grad, Gen.get_args(trace))
     input_grads
 end
 
 export @input, @output
 export @tf_function
-export TensorFlowFunction
-export get_graph, get_session
+export get_session
 export init_session!
 export get_param_names
 export get_param_val
 export get_param_grad
 export zero_grad
-export exec_tf_function
-export gradient
