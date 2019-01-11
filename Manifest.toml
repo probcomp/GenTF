@@ -133,12 +133,12 @@ uuid = "92fee26a-97fe-5a0c-ad85-20a5f3185b63"
 version = "0.5.0"
 
 [[Gen]]
-deps = ["Distributions", "FunctionalCollections", "JSON", "LinearAlgebra", "ReverseDiff", "SpecialFunctions"]
-git-tree-sha1 = "50f31e5bf494d8f410adbb6087738cc06440895a"
+deps = ["DataStructures", "Distributions", "FunctionalCollections", "JSON", "LinearAlgebra", "Random", "ReverseDiff", "SpecialFunctions"]
+git-tree-sha1 = "c7faf72e5744216db77e3361aac354825beaef72"
 repo-rev = "master"
 repo-url = "git@github.com:probcomp/Gen.git"
 uuid = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"
-version = "0.1.0"
+version = "0.2.1"
 
 [[HTTP]]
 deps = ["Base64", "Dates", "Distributed", "IniFile", "MbedTLS", "Sockets", "Test"]
