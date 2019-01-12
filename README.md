@@ -7,6 +7,8 @@ TensorFlow plugin for [Gen](https://github.com/probcomp/Gen).
 From the Julia REPL, type `]` to enter the Pkg REPL mode and run:
 ```
 add TensorFlow#8a28acb
+add PyCall
+add MacroTools
 add https://github.com/probcomp/GenTF
 ```
 In a Julia REPL, build TensorFlow.jl to use an appropriate Python version. We have succesfully tested the following:
