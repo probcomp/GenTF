@@ -12,7 +12,7 @@ env:
 notifications:
     email: false
 script:
-    - julia -e 'using Pkg; Pkg.build(); Pkg.test()'
+    - julia -e 'using Pkg; Pkg.build("TensorFlow"); Pkg.test()'
 matrix:
   allow_failures:
     - env: CONDA_JL_VERSION="3" PYTHON=""
