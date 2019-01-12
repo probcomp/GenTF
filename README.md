@@ -1,27 +1,22 @@
 # GenTF [![Build Status](https://travis-ci.org/probcomp/GenTF.svg?branch=master)](https://travis-ci.org/probcomp/GenTF)
 
-## Installing for development
+TensorFlow plugin for [Gen](https://github.com/probcomp/Gen).
 
-First, clone the repository somewhere on your filesystem (e.g. `/home/marcoct/dev/GenTF/`), and instruct the Julia package manager to add it as a dependency in the current project, in development mode:
-```
-julia -e 'Pkg.clone("git@github.com:probcomp/GenTF.git")'
-julia -e 'Pkg.develop(Pkg.PackageSpec(path="/home/marcoct/dev/GenTF"))'
-```
+## Installation
 
-Then, build the package and its dependencies, using a standalone Python instead of the system Python:
+From the Julia REPL, type `]` to enter the Pkg REPL mode and run:
 ```
-julia -e 'ENV["PYTHON"] = ""; Pkg.build("GenTF")'
+add TensorFlow#8a28acb
+add https://github.com/probcomp/GenTF
 ```
-
-To build with GPU support (requires CUDA, see TensorFlow.jl for more details), use:
+In a Julia REPL, build TensorFlow.jl to use an appropriate Python version. We have succesfully tested the following:
 ```
-julia -e 'ENV["PYTHON"] = ""; ENV["TF_USE_GPU"] = 1; Pkg.build("GenTF")'
+ENV["PYTHON"] = ""; ENV["CONDA_JL_VERSION"] = "2"; using Pkg; Pkg.build("TensorFlow")
 ```
 
-Test it:
+To enable TensorFlow to use the GPU, use:
 ```
-julia -e 'Pkg.test("GenTF")'
+ENV["PYTHON"] = ""; ENV["CONDA_JL_VERSION"] = "2"; ENV["TF_USE_GPU"] = "1"; using Pkg; Pkg.build("TensorFlow")
 ```
 
-See the docker file for an example build that does not use GPU.
-Also see TensorFlow.jl for issues building TensorFlow.
+See [TensorFlow.jl](https://github.com/malmaud/TensorFlow.jl) for issues building TensorFlow.
