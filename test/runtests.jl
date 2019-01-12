@@ -26,7 +26,7 @@ using PyCall
     (x_grad,) = backprop_params(trace, y_grad)
     @test isapprox(x_grad, init_W' * y_grad)
 
-    (W_grad,) = get_grad_vars(foo)
+    W_grad = get_param_grad_tf_var(foo, W)
     @test isapprox(sess[:run](W_grad), y_grad * x')
 end
 
@@ -48,11 +48,11 @@ end
         end
     end
 
-    (w_grad,) = get_grad_vars(tf_func)
+    w_grad = get_param_grad_tf_var(tf_func, w)
     gradient_step = tf.assign_add(w, tf.scalar_mul(tf.constant(0.01, dtype=tf.float32), w_grad))
     update = nothing
     @pywith tf.control_dependencies([gradient_step]) begin
-        update = tf.group(tf_func.accum_zero_op)
+        update = tf.group(reset_param_grads_tf_op(tf_func))
     end
 
     xs = Float64[-2, -1, 1, 2]

@@ -23,11 +23,10 @@ Gen.get_gen_fn(trace::TFFunctionTrace) = trace.gen_fn
 
 struct TFFunction <: GenerativeFunction{Any,TFFunctionTrace}
     sess::PyObject
-    params::Vector{PyObject}
     inputs::Vector{PyObject}
     output::PyObject
-    param_grads::Vector{PyObject}
-    param_grad_accums::Vector{PyObject}
+    # map from parameter to parameter gradient accumulator
+    param_grad_accums::Dict{PyObject,PyObject} 
     input_grads::Vector{PyObject}
     output_grad::PyObject
     param_grad_add_op::PyObject
@@ -43,21 +42,27 @@ Gen.accepts_output_grad(gen_fn::TFFunction) = true
 function TFFunction(sess, params, inputs, output)
     output_grad = tf[:placeholder](output[:dtype])
     input_grads = tf[:gradients]([output], inputs, [output_grad])
-    param_grads = tf[:gradients]([output], params, [output_grad])
+    param_grad_increments = tf[:gradients]([output], params, [output_grad])
 
     # gradient accumulators
-    param_grad_accums = PyObject[tf[:Variable](param) for param in params]
+    param_grad_accums = Dict{PyObject,PyObject}()
+    for param in params
+        param_grad_accums[param] = tf[:Variable](param)
+    end
 
     # the operation that increments the gradient accumulators
     param_grad_add_ops = []
-    for (grad, accum) in zip(param_grads, param_grad_accums)
+    for (param, grad) in zip(params, param_grad_increments)
+        accum = param_grad_accums[param]
+        println("accum: $accum")
+        println("grad: $grad")
         push!(param_grad_add_ops, tf[:assign_add](accum, grad))
     end
     param_grad_add_op = tf[:group](param_grad_add_ops...)
 
     # the operation that resets the gradient accumulators to zeros
     accum_zero_ops = []
-    for accum in param_grad_accums
+    for accum in values(param_grad_accums)
         push!(accum_zero_ops, tf[:assign](accum, tf[:zeros_like](accum)))
     end
     accum_zero_op = tf[:group](accum_zero_ops...)
@@ -65,16 +70,16 @@ function TFFunction(sess, params, inputs, output)
     sess[:run](tf[:global_variables_initializer]())
     sess[:run](accum_zero_op)
 
-    TFFunction(sess, params, inputs, output, param_grads, param_grad_accums, input_grads, output_grad,
+    TFFunction(sess, inputs, output,
+        param_grad_accums, input_grads, output_grad,
         param_grad_add_op, accum_zero_op)
 end
 
-function reset_grads!(gen_fn::TFFunction)
-    gen_fn.sess[:run](gen_fn.accum_zero_op)
-    nothing
-end
+reset_param_grads_tf_op(gen_fn::TFFunction) = gen_fn.accum_zero_op
 
-get_grad_vars(gen_fn::TFFunction) = gen_fn.param_grad_accums
+function get_param_grad_tf_var(gen_fn::TFFunction, param::PyObject)
+    gen_fn.param_grad_accums[param]
+end
 
 function Gen.initialize(gen_fn::TFFunction, args::Tuple, ::Assignment)
     feed_dict = Dict()
@@ -131,6 +136,6 @@ function Gen.backprop_params(trace::TFFunctionTrace, retval_grad)
     (result[1:end-1]...,)
 end
 
-export TFFunction, reset_grads!, get_grad_vars
+export TFFunction, reset_param_grads_tf_op, get_param_grad_tf_var
 
 end # module GenTF
