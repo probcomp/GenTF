@@ -21,6 +21,11 @@ Gen.get_assmt(::TFFunctionTrace) = EmptyAssignment()
 Gen.get_score(::TFFunctionTrace) = 0.
 Gen.get_gen_fn(trace::TFFunctionTrace) = trace.gen_fn
 
+"""
+    gen_fn = TFFunction(sess::PyObject, params::Vector{PyObject},
+                        inputs::Vector{PyObject}, output::PyObject)
+Construct a TensorFlow generative function from elements of a TensorFlow computation graph.
+"""
 struct TFFunction <: GenerativeFunction{Any,TFFunctionTrace}
     sess::PyObject
     inputs::Vector{PyObject}
@@ -75,8 +80,16 @@ function TFFunction(sess, params, inputs, output)
         param_grad_add_op, accum_zero_op)
 end
 
+"""
+    op::PyObject = reset_param_grads_tf_op(gen_fn::TFFunction)
+Return the TensorFlow operation Tensor that resets the gradients of all parameters of the given function to zero.
+"""
 reset_param_grads_tf_op(gen_fn::TFFunction) = gen_fn.accum_zero_op
 
+"""
+    var::PyObject = get_param_grad_tf_var(gen_fn::TFFunction, param::PyObject)
+Return the TensorFlow Variable that stores the gradient of the given parameter TensorFlow Variable.
+"""
 function get_param_grad_tf_var(gen_fn::TFFunction, param::PyObject)
     gen_fn.param_grad_accums[param]
 end
