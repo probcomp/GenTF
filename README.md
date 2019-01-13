@@ -2,6 +2,12 @@
 
 TensorFlow plugin for [Gen](https://github.com/probcomp/Gen).
 
+*Warning: This is rapidly evolving and currently unsupported research software. We are currently working on stabilizing the DSLs and APIs, and developing documentation and tutorials.*
+
+## Documentation
+
+Documentation of the development version: [https://probcomp.github.io/GenTF/dev/](https://probcomp.github.io/GenTF/dev/)
+
 ## Installation
 
 The installation requires an installation of Python and an installation of the [`tensorflow`]((https://www.tensorflow.org/install/pip)) Python package.
