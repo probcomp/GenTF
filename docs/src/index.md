@@ -76,6 +76,7 @@ The GenTF package allows users to construct deterministic generative functions f
 
 - A Tensor produced from a non-mutating operation applied to another Tensor, placeholder, or Variable (e.g. `tf.conv2d` is allowed but `tf.assign` is not). These comprise the **body** of the generative function.
 
+One of these elements is designated the **return value** of the generative function.
 Note that we do not currently permit TensorFlow generative functions to use randomness.
 
 To construct a TensorFlow generative function, we first construct the TensorFlow computation graph using the TensorFlow Python API:
@@ -92,7 +93,13 @@ W = tf.Variable(zeros(Float64, 784, 10))
 b = tf.Variable(zeros(Float64, 10))
 probs = nn.softmax(tf.add(tf.matmul(xs, W), b), axis=1) # N x 10
 ```
-, and then we construct a `TFFunction` value from the 
+
+Then we construct a `TFFunction` from the TensorFlow graph objects.
+The first argument to `TFFunction` is the TensorFlow session, followed by a `Vector` of **trainable parameters** (`W` and `b`), a `Vector` of **arguments** (just `xs`), and finally the **return value** (`probs`).
+```
+sess = tf.Session()
+net = TFFunction(sess, [W, b], [xs], probs)
+```
 
 - what happens when the model is defined
     > the global variable initializer is run..
