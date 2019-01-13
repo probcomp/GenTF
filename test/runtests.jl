@@ -1,23 +1,23 @@
 using Gen
 using GenTF
-using TensorFlow
-tf = TensorFlow
 using Test
+using PyCall
+
+@pyimport tensorflow as tf
 
 @testset "basic" begin
 
     init_W = rand(Float32, 2, 3)
-    foo = @tf_function begin
-        @input x Float32 [3]
-        @param W init_W
-        y = tf.dropdims(tf.matmul(W, tf.expand_dims(x, 2)), dims=[2])
-        @output Float32 y
-    end
     
-    foo_session = init_session!(foo)
+    W = tf.get_variable("W", dtype=tf.float32, initializer=init_W)
+    x = tf.placeholder(tf.float32, shape=(3,), name="x")
+    y = tf.squeeze(tf.matmul(W, tf.expand_dims(x, axis=1)), axis=1)
+    
+    sess = tf.Session()
+    foo = TFFunction(sess, [W], [x], y)
 
     x = rand(Float32, 3)
-    (trace, weight) = initialize(foo, (x,), EmptyAssignment())
+    (trace, weight) = initialize(foo, (x,))
     @test weight == 0.
     y = get_retval(trace)
     @test isapprox(y, init_W * x)
@@ -26,22 +26,20 @@ using Test
     (x_grad,) = backprop_params(trace, y_grad)
     @test isapprox(x_grad, init_W' * y_grad)
 
-    W_grad = tf.run(foo_session, GenTF.get_param_grad(foo, :W))
-    @test isapprox(W_grad, y_grad * x')
+    W_grad = get_param_grad_tf_var(foo, W)
+    @test isapprox(sess[:run](W_grad), y_grad * x')
 end
 
 @testset "maximum likelihood" begin
 
-    N = 4
+    xs = tf.placeholder(tf.float32, shape=(4,), name="xs")
+    w = tf.get_variable("w", dtype=tf.float32, initializer=Float32[0., 0.])
+    ones = tf.fill([4], tf.constant(1.0, dtype=tf.float32))
+    X = tf.stack([xs, ones], axis=1)
+    y_means = tf.squeeze(tf.matmul(X, tf.expand_dims(w, axis=1)), axis=1)
 
-    tf_func = @tf_function begin
-        @input xs Float32 [N] # (N,)
-        @param w Float32[0., 0.] # (2,)
-        ones = tf.fill(tf.constant(1.0, dtype=Float32), [N])
-        X = tf.stack([xs, ones], axis=2) # (N,2)
-        y_means = tf.dropdims(tf.matmul(X, tf.expand_dims(w, 2)), dims=[2]) # (N,)
-        @output Float32 y_means
-    end
+    sess = tf.Session()
+    tf_func = TFFunction(sess, [w], [xs], y_means)
 
     @gen function model(xs::Vector{Float64})
         y_means = @addr(tf_func(xs), :tf_func)
@@ -50,16 +48,8 @@ end
         end
     end
 
-    update = tf.as_default(GenTF.get_graph(tf_func)) do 
-        w_var = get_param_val(tf_func, :w)
-        w_grad = GenTF.get_param_grad(tf_func, :w)
-        gradient_step = tf.assign_add(w_var, tf.mul(w_grad, tf.constant(0.01, dtype=Float32)))
-        tf.with_op_control([gradient_step]) do
-            zero_grad(tf_func, :w)
-        end
-    end
-
-    tf_func_session = init_session!(tf_func)
+    w_grad = get_param_grad_tf_var(tf_func, w)
+    gradient_step = tf.assign_add(w, tf.scalar_mul(tf.constant(0.01, dtype=tf.float32), w_grad))
 
     xs = Float64[-2, -1, 1, 2]
     ys = -2 * xs .+ 1
@@ -67,16 +57,21 @@ end
     for (i, y) in enumerate(ys)
         constraints["y-$i"] = y
     end
-    for iter=1:200
+    for iter=1:1000
         (trace, _) = initialize(model, (xs,), constraints)
-        score = get_score(trace)
-        w = tf.run(tf_func_session, get_param_val(tf_func, :w))
         backprop_params(trace, nothing)
-        w_grad = tf.run(tf_func_session, GenTF.get_param_grad(tf_func, :w))
-        tf.run(tf_func_session, update)
+
+        # NOTE: attempting to bundle the two commands into one ('update')
+        # worked on one environment but failed in another:
+        #@pywith tf.control_dependencies([gradient_step]) begin
+            #update = tf.group(reset_param_grads_tf_op(tf_func))
+        #end
+
+        sess[:run](gradient_step)
+        sess[:run](reset_param_grads_tf_op(tf_func))
     end
-    w = tf.run(tf_func_session, get_param_val(tf_func, :w))
-    @test isapprox(w[1], -2., atol=0.001)
-    @test isapprox(w[2], 1., atol=0.01)
+    w_val = sess[:run](w)
+    @test isapprox(w_val[1], -2., atol=0.001)
+    @test isapprox(w_val[2], 1., atol=0.01)
     
 end
