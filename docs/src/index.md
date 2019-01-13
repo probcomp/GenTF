@@ -2,6 +2,11 @@
 
 *TensorFlow plugin for the Gen probabilistic programming system*
 
+The Julia package [GenTF](https://github.com/probcomp/GenTF) allows for [Gen](https://github.com/probcomp/Gen) generative functions to invoke TensorFlow computations executed on the GPU by the TensorFlow runtime.
+Users construct a TensorFlow computation using the familiar TensorFlow Python API, and then package the TensorFlow computation in a `TFFunction`, which is a type of generative function provided by GenTF.
+Generative functions written in Gen's built-in modeling language can seamlessly call `TFFunction`s.
+GenTF integrates Gen's automatic differentiation with TensorFlow's gradients, allowing automatic differentiation of computations that combine Julia and TensorFlow code.
+
 ## Installation
 
 The installation requires an installation of Python and an installation of the [tensorflow](https://www.tensorflow.org/install/pip) Python package.
@@ -16,18 +21,22 @@ In a Julia REPL, build the `PyCall` module so that it will use the correct Pytho
 ```julia
 using Pkg; ENV["PYTHON"] = "<python>"; Pkg.build("PyCall")
 ```
-Also see https://github.com/JuliaPy/PyCall.jl#specifying-the-python-version.
+Check that intended python environment is indeed being used with:
+```julia
+using PyCall; println(PyCall.python)
+```
+If you encounter problems, see https://github.com/JuliaPy/PyCall.jl#specifying-the-python-version
 
 
 ## Calling the TensorFlow Python API
 
-GenTF uses the Julia package [PyCall](https://github.com/JuliaPy/PyCall.jl) to run Python code that constructs [TensorFlow](https://www.tensorflow.org/) computation graphs using the [TensorFlow Python API](https://www.tensorflow.org/api_docs/python/).
+GenTF uses the Julia package [PyCall](https://github.com/JuliaPy/PyCall.jl) to invoke the [TensorFlow Python API](https://www.tensorflow.org/api_docs/python/).
 
 First, import PyCall:
 ```julia
 using PyCall
 ```
-Then import the `tensorflow` module from the TensorFlow Python package:
+Then import the `tensorflow` Python module:
 ```julia
 @pyimport tensorflow as tf
 ```
@@ -35,7 +44,7 @@ To import a module from a subpackage:
 ```julia
 @pyimport tensorflow.train as train
 ```
-Then, you can call the TensorFlow Python API using syntax that is very close and in many cases identical to Python syntax:
+Then, call the TensorFlow Python API with syntax that is very close to Python syntax:
 ```julia
 W = tf.get_variable("W", dtype=tf.float32, initializer=init_W)
 x = tf.placeholder(tf.float32, shape=(3,), name="x")
@@ -61,13 +70,29 @@ In contrast, Gen uses a more rigid separation between models (both generative mo
 Specifically, models in Gen are defined as (functional and stateless) *generative functions*, and the operations that run the models or train the models are defined in separate Julia code.
 The GenTF package allows users to construct deterministic generative functions from a TensorFlow computation graph in which each TensorFlow element is one of the following:
 
-- A `tf.placeholder`. These play the role of *arguments* to the generative function.
+- A `tf.placeholder`. These play the role of **arguments** to the generative function.
 
-- A `tf.Variable`. These play the role of the *trainable parameters* of the generative function. We will discuss how to train the parameters in section [Implementing praameter updates](#implementing-parameter-updates).
+- A `tf.Variable`. These play the role of the **trainable parameters** of the generative function. Their value is shared across all invocations of the generative function. We will discuss how to train these parameters in section [Implementing parameter updates](@ref).
 
-- A Tensor produced from a non-mutating operation applied to another Tensor, placeholder, or Variable (e.g. `tf.conv2d` is allowed but `tf.assign` is not). These comprise the actual computation performed by the generative function.
+- A Tensor produced from a non-mutating operation applied to another Tensor, placeholder, or Variable (e.g. `tf.conv2d` is allowed but `tf.assign` is not). These comprise the **body** of the generative function.
 
 Note that we do not currently permit TensorFlow generative functions to use randomness.
+
+To construct a TensorFlow generative function, we first construct the TensorFlow computation graph using the TensorFlow Python API:
+```julia
+using Gen
+using GenTF
+using PyCall
+
+@pyimport tensorflow as tf
+@pyimport tensorflow.nn as nn
+
+xs = tf.placeholder(tf.float64) # N x 784
+W = tf.Variable(zeros(Float64, 784, 10))
+b = tf.Variable(zeros(Float64, 10))
+probs = nn.softmax(tf.add(tf.matmul(xs, W), b), axis=1) # N x 10
+```
+, and then we construct a `TFFunction` value from the 
 
 - what happens when the model is defined
     > the global variable initializer is run..
