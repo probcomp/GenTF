@@ -39,7 +39,14 @@ end
 
 Gen.accepts_output_grad(gen_fn::TFFunction) = true
 
-function TFFunction(sess, params, inputs, output)
+"""
+    gen_fn = TFFunction(sess::PyObject, params::Vector{PyObject},
+                        inputs::Vector{PyObject}, output::PyObject)
+
+Construct a TensorFlow generative function from elements of a TensorFlow computation graph.
+"""
+function TFFunction(sess::PyObject, params::Vector{PyObject},
+                    inputs::Vector{PyObject}, output::PyObject)
     output_grad = tf[:placeholder](output[:dtype])
     input_grads = tf[:gradients]([output], inputs, [output_grad])
     param_grad_increments = tf[:gradients]([output], params, [output_grad])
@@ -75,8 +82,18 @@ function TFFunction(sess, params, inputs, output)
         param_grad_add_op, accum_zero_op)
 end
 
+"""
+    op::PyObject = reset_param_grads_tf_op(gen_fn::TFFunction)
+
+Return the TensorFlow operation Tensor that resets the gradients of all parameters of the given function to zero.
+"""
 reset_param_grads_tf_op(gen_fn::TFFunction) = gen_fn.accum_zero_op
 
+"""
+    var::PyObject = get_param_grad_tf_var(gen_fn::TFFunction, param::PyObject)
+
+Return the TensorFlow Variable that stores the gradient of the given parameter TensorFlow Variable.
+"""
 function get_param_grad_tf_var(gen_fn::TFFunction, param::PyObject)
     gen_fn.param_grad_accums[param]
 end

@@ -1,4 +1,4 @@
-using Documenter, Gen
+using Documenter, GenTF
 
 makedocs(
     format = :html,
