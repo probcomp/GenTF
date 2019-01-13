@@ -50,10 +50,6 @@ end
 
     w_grad = get_param_grad_tf_var(tf_func, w)
     gradient_step = tf.assign_add(w, tf.scalar_mul(tf.constant(0.01, dtype=tf.float32), w_grad))
-    update = nothing
-    @pywith tf.control_dependencies([gradient_step]) begin
-        update = tf.group(reset_param_grads_tf_op(tf_func))
-    end
 
     xs = Float64[-2, -1, 1, 2]
     ys = -2 * xs .+ 1
@@ -64,7 +60,15 @@ end
     for iter=1:1000
         (trace, _) = initialize(model, (xs,), constraints)
         backprop_params(trace, nothing)
-        sess[:run](update)
+
+        # NOTE: attempting to bundle the two commands into one ('update')
+        # worked on one environment but failed in another:
+        #@pywith tf.control_dependencies([gradient_step]) begin
+            #update = tf.group(reset_param_grads_tf_op(tf_func))
+        #end
+
+        sess[:run](gradient_step)
+        sess[:run](reset_param_grads_tf_op(tf_func))
     end
     w_val = sess[:run](w)
     @test isapprox(w_val[1], -2., atol=0.001)
