@@ -67,21 +67,21 @@ See the [PyCall README](https://github.com/JuliaPy/PyCall.jl) for the complete d
 
 A TensorFlow computation graph contains both the model(s) being trained as well as the operations that do the training.
 In contrast, Gen uses a more rigid separation between models (both generative models and inference models) and the operations that act on models.
-Specifically, models in Gen are defined as (functional and stateless) *generative functions*, and the operations that run the models or train the models are defined in separate Julia code.
-The GenTF package allows users to construct deterministic generative functions from a TensorFlow computation graph in which each TensorFlow element is one of the following roles:
+Specifically, models in Gen are defined as (pure functional) *generative functions*, and the operations that run the models or train the models are defined in separate Julia code.
+The GenTF package allows users to construct deterministic generative functions of type `TFFunction <: GenerativeFunction` from a TensorFlow computation graph in which each TensorFlow element is one of the following roles:
 
-Role                    | TensorFlow object type
-:---------------------- | :--------------------------
-Argument                | tf.Tensor produced by tf.placeholder
-Trainable Parameter     | tf.Variable
-Operation in Body       | tf.Tensor produced by non-mutating TensorFlow operation (e.g. tf.conv2d)
-N/A                     | tf.Tensor produced by mutating TensorFlow operation (e.g. tf.assign)
+Role in `TFFunction`         | TensorFlow object type
+:--------------------------- | :--------------------------
+Argument                     | tf.Tensor produced by tf.placeholder
+Trainable Parameter          | tf.Variable
+Operation in Body            | tf.Tensor produced by non-mutating TensorFlow operation (e.g. tf.conv2d)
+N/A                          | tf.Tensor produced by mutating TensorFlow operation (e.g. tf.assign)
 
 TensorFlow placeholders play the role of **arguments** to the generative function.
 TensorFlow Variables play the role of the **trainable parameters** of the generative function.
 Their value is shared across all invocations of the generative function and is managed by the TensorFlow runtime, not Julia.
 We will discuss how to train these parameters in section [Implementing parameter updates](@ref).
-A Tensor produced from a non-mutating operation comprise the **body** of the generative function.
+Tensors produced from non-mutating operations comprise the **body** of the generative function.
 One of these elements (either an argument parameter, or element of the body) is designated the **return value** of the generative function.
 Note that we do not currently permit TensorFlow generative functions to use randomness.
 
@@ -104,7 +104,7 @@ Then we construct a `TFFunction` from the TensorFlow graph objects.
 The first argument to `TFFunction` is the TensorFlow session, followed by a `Vector` of trainable parameters (`W` and `b`), a `Vector` of arguments (`xs`), and finally the **return value** (`probs`).
 ```
 sess = tf.Session()
-net = TFFunction(sess, [W, b], [xs], probs)
+tf_func = TFFunction(sess, [W, b], [xs], probs)
 ```
 The return value must be a differentiable function of each argument and each parameter.
 Note that the return value does *not* need to be a scalar.
@@ -118,41 +118,76 @@ W_value = sess[:run](W)
 
 ### What happens during `Gen.initialize`
 
-Suppose we run `Gen.initialize` on the `TFFunction`:
+Suppose we run `initialize` on the `TFFunction`:
 ```julia
-(trace, weight) = initialize(net, (xs_val,), EmptyAssignment())
+(trace, weight) = initialize(tf_func, (xs_val,), EmptyAssignment())
 ```
-This causes the TensorFlow runtime to compute the return value to be computed for the given values of the arguments and the current values of of the trainable parameters.
-The return value obtained by Julia from TensorFlow and stored in the trace (accessible with `get_retval(trace)`).
-The given argument values are also stored in the trace (accessible with `get_args(trace)`).
-Note that we pass an empty assignment to `Gen.initialize` because a `TFFunction` cannot make any random choices that could be constrained.
+
+- The TensorFlow runtime computes the return value for the given values of the arguments and the current values of of the trainable parameters.
+
+- The return value is obtained by Julia from TensorFlow and stored in the trace (it is accessible with `get_retval(trace)`).
+
+- The given argument values are also stored in the trace (accessible with `get_args(trace)`).
+
+Note that we pass an empty assignment to `initialize` because a `TFFunction` cannot make any random choices that could be constrained.
+
 
 ### What happens during `Gen.backprop_trace`
 
-When running `Gen.backprop_trace` with a trace produced from a `TFFunction`, we must pass a gradient value for the return value.
+When running `backprop_trace` with a trace produced from a `TFFunction`, we must pass a gradient value for the return value.
 This value should be a Julia `Array` with the same shape as the return value.
 ```julia
 ((xs_grad,), _, _) = backprop_trace(trace, EmptyAddressSet(), retval_grad)
 ```
-The method returns the value of the gradient with respect to the inputs.
+
+- The gradients with respect to each argument are computed by the TensorFlow runtime.
+
+- The values of the gradient are converted to Julia values and returned.
+
 Note that we pass an empty selection because a `TFFunction` does not make any random choices that could be selected.
+
 
 ### What happens during `Gen.backprop_params`
 
-When running `Gen.backprop_params` with a trace produced from a `TFFunction`, we must pass a gradient value for the return value.
+When running `backprop_params` with a trace produced from a `TFFunction`, we must pass a gradient value for the return value.
 This value should be a Julia `Array` with the same shape as the return value.
 ```julia
 (xs_grad,) = backprop_params(trace, retval_grad)
 ```
-Like `backprop_trace`, the method returns the value of the gradient with respect to the inputs.
-The gradient with respect to the trainable parameters is computed and the **gradient accumulator** TensorFlow Variable for each trainable parameter is incremented by the its gradient.
+
+- Like `backprop_trace`, the method returns the value of the gradient with respect to the arguments
+
+- The gradient with respect to each trainable parameters is computed by the TensorFlow runtime.
+
+- A **gradient accumulator** TensorFlow Variable for each trainable parameter is incremented by the corresponding gradient value.
+
 The gradient accumulator for a parameter accumulates gradient contributions over multiple invocations of `backprop_params`.
 A gradient accumulator TensorFlow Variable value can be obtained from the `TFFunction` with `get_param_grad_tf_var` (see [API](@ref) below).
 The value of all gradient accumulators for a given `TFFunction` can be reset to zeros with `reset_param_grads_tf_op` (see [API](@ref) below).
 
 ## Implementing parameter updates
 
+Updates to the trainable parameters of a `TFFunction` are also defined using the TensorFlow Python API.
+For example, below we define a TensorFlow operation to apply one step of stochastic gradient descent, based on the current values of the gradient accumulators for all parameters:
+```julia
+opt = train.GradientDescentOptimizer(.00001)
+grads_and_vars = []
+push!(grads_and_vars, (tf.negative(get_param_grad_tf_var(tf_func, W)), W))
+push!(grads_and_vars, (tf.negative(get_param_grad_tf_var(tf_func, b)), b))
+update = opt[:apply_gradients](grads_and_vars)
+```
+We can then apply this update with:
+```julia
+sess[:run](update)
+```
+We can reset the gradient accumulators to zero when desired with:
+```julia
+sess[:run](reset_param_grads_tf_op(tf_func))
+```
 
+## Examples
+
+See the `examples/` directory for examples that show `TFFunction`s being combined with regular Gen functions.
 
 ## API
 
