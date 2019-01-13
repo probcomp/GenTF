@@ -28,6 +28,10 @@ jobs:
                                     Pkg.develop(PackageSpec(path="$(pwd())/.."));
                                     Pkg.develop(PackageSpec(path=pwd()));
                                     Pkg.instantiate();
-                                    Pkg.build("PyCall")'
+                                    Pkg.add("PyCall");
+                                    Pkg.build("PyCall");
+                                    using PyCall;
+                                    println(ENV["PYTHON"]);
+                                    println(PyCall.python)'
         - julia --project=docs/ docs/make.jl
       after_success: skip
