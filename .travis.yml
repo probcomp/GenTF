@@ -2,17 +2,15 @@
 # See status of Travis builds at https://travis-ci.org/probcomp/GenTF
 
 language: julia
+
 os:
     - linux
+
 julia:
   - 1.0
-env:
-    - CONDA_JL_VERSION="2" PYTHON=""
-    - CONDA_JL_VERSION="3" PYTHON=""
-notifications:
-    email: false
+
+before_install:
+    - sudo ./install_tensorflow.sh
+
 script:
-    - julia -e 'using Pkg; Pkg.build("TensorFlow"); Pkg.test()'
-matrix:
-  allow_failures:
-    - env: CONDA_JL_VERSION="3" PYTHON=""
+    - julia -e 'ENV["PYTHON"] = "/home/travis/build/probcomp/GenTF/tf_env/bin/python3"; using Pkg; Pkg.build("PyCall"); Pkg.test()'
