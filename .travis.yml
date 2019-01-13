@@ -22,6 +22,8 @@ jobs:
     - stage: docs
       julia: 1.0
       os: linux
+      before_install:
+        - sudo ./install_tensorflow.sh
       script:
         - julia --project=docs/ -e 'using Pkg;
                                     Pkg.add(PackageSpec(url="https://github.com/probcomp/Gen"));
