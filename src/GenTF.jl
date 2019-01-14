@@ -21,11 +21,6 @@ Gen.get_assmt(::TFFunctionTrace) = EmptyAssignment()
 Gen.get_score(::TFFunctionTrace) = 0.
 Gen.get_gen_fn(trace::TFFunctionTrace) = trace.gen_fn
 
-"""
-    gen_fn = TFFunction(sess::PyObject, params::Vector{PyObject},
-                        inputs::Vector{PyObject}, output::PyObject)
-Construct a TensorFlow generative function from elements of a TensorFlow computation graph.
-"""
 struct TFFunction <: GenerativeFunction{Any,TFFunctionTrace}
     sess::PyObject
     inputs::Vector{PyObject}
@@ -44,7 +39,14 @@ end
 
 Gen.accepts_output_grad(gen_fn::TFFunction) = true
 
-function TFFunction(sess, params, inputs, output)
+"""
+    gen_fn = TFFunction(params::Vector{PyObject},
+                        inputs::Vector{PyObject}, output::PyObject,
+                        sess::PyObject=tf.Session())
+
+Construct a TensorFlow generative function from elements of a TensorFlow computation graph.
+"""
+function TFFunction(params, inputs, output, sess::PyObject=tf[:Session]())
     output_grad = tf[:placeholder](output[:dtype])
     input_grads = tf[:gradients]([output], inputs, [output_grad])
     param_grad_increments = tf[:gradients]([output], params, [output_grad])
@@ -94,8 +96,20 @@ function get_param_grad_tf_var(gen_fn::TFFunction, param::PyObject)
     gen_fn.param_grad_accums[param]
 end
 
+"""
+    get_session(gen_fn::TFFunction)
+
+Return the TensorFlow session associated with the given function.
+"""
 get_session(gen_fn::TFFunction) = gen_fn.sess
 
+"""
+    runtf(gen_fn::TFFunction, ...)
+
+Fetch values or run operations in the TensorFlow session associated with the given function.
+
+Syntactic sugar for `get_session(gen_fn)[:run](args...)`
+"""
 runtf(gen_fn::TFFunction, args...) = gen_fn.sess[:run](args...)
 
 function Gen.initialize(gen_fn::TFFunction, args::Tuple, ::Assignment)

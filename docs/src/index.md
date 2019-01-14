@@ -104,16 +104,28 @@ Then we construct a `TFFunction` from the TensorFlow graph objects.
 The first argument to `TFFunction` is the TensorFlow session, followed by a `Vector` of trainable parameters (`W` and `b`), a `Vector` of arguments (`xs`), and finally the **return value** (`probs`).
 ```
 sess = tf.Session()
-tf_func = TFFunction(sess, [W, b], [xs], probs)
+tf_func = TFFunction([W, b], [xs], probs, sess)
 ```
 The return value must be a differentiable function of each argument and each parameter.
 Note that the return value does *not* need to be a scalar.
 TensorFlow computations for gradients with respect to the arguments and with respect to the parameters are automatically generated when constructing the `TFFunction`.
 
+If a session is not provided a new session is created:
+```julia
+tf_func = TFFunction([W, b], [xs], probs)
+```
 Values for the parameters are managed by the TensorFlow runtime.
-The value of a trainable parameter can be obtained in Julia using the reference to the Python Variable object:
+The TensorFlow session that contains the parameter values is obtained with:
+```julia
+sess = get_session(tf_func)
+```
+The value of a trainable parameter can be obtained in Julia by fetching the Python Variable object (e.g. 'W'):
 ```julia
 W_value = sess[:run](W)
+```
+Equivalently, this can be done using a more concise syntax with the `runtf` method:
+```julia
+W_value = runtf(tf_func, W)
 ```
 
 ### What happens during `Gen.initialize`
@@ -193,6 +205,8 @@ See the `examples/` directory for examples that show `TFFunction`s being combine
 
 ```@docs
 TFFunction
+get_session
+runtf
 get_param_grad_tf_var
 reset_param_grads_tf_op
 ```

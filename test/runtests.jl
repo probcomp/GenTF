@@ -8,7 +8,7 @@ using PyCall
 @testset "get_session" begin
     x = tf.constant(0.)
     sess = tf.Session()
-    foo = TFFunction(sess, [], [], x)
+    foo = TFFunction([], [], x, sess)
     @test get_session(foo) === sess
 end
 
@@ -20,8 +20,7 @@ end
     x = tf.placeholder(tf.float32, shape=(3,), name="x")
     y = tf.squeeze(tf.matmul(W, tf.expand_dims(x, axis=1)), axis=1)
     
-    sess = tf.Session()
-    foo = TFFunction(sess, [W], [x], y)
+    foo = TFFunction([W], [x], y)
 
     x = rand(Float32, 3)
     (trace, weight) = initialize(foo, (x,))
@@ -45,8 +44,7 @@ end
     X = tf.stack([xs, ones], axis=1)
     y_means = tf.squeeze(tf.matmul(X, tf.expand_dims(w, axis=1)), axis=1)
 
-    sess = tf.Session()
-    tf_func = TFFunction(sess, [w], [xs], y_means)
+    tf_func = TFFunction([w], [xs], y_means)
 
     @gen function model(xs::Vector{Float64})
         y_means = @addr(tf_func(xs), :tf_func)
