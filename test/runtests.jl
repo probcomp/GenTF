@@ -5,6 +5,13 @@ using PyCall
 
 @pyimport tensorflow as tf
 
+@testset "get_session" begin
+    x = tf.constant(0.)
+    sess = tf.Session()
+    foo = TFFunction(sess, [], [], x)
+    @test get_session(foo) === sess
+end
+
 @testset "basic" begin
 
     init_W = rand(Float32, 2, 3)
@@ -27,7 +34,7 @@ using PyCall
     @test isapprox(x_grad, init_W' * y_grad)
 
     W_grad = get_param_grad_tf_var(foo, W)
-    @test isapprox(sess[:run](W_grad), y_grad * x')
+    @test isapprox(runtf(foo, W_grad), y_grad * x')
 end
 
 @testset "maximum likelihood" begin
@@ -67,10 +74,10 @@ end
             #update = tf.group(reset_param_grads_tf_op(tf_func))
         #end
 
-        sess[:run](gradient_step)
-        sess[:run](reset_param_grads_tf_op(tf_func))
+        runtf(tf_func, gradient_step)
+        runtf(tf_func, reset_param_grads_tf_op(tf_func))
     end
-    w_val = sess[:run](w)
+    w_val = runtf(tf_func, w)
     @test isapprox(w_val[1], -2., atol=0.001)
     @test isapprox(w_val[2], 1., atol=0.01)
     

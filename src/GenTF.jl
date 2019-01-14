@@ -72,7 +72,7 @@ function TFFunction(sess, params, inputs, output)
     end
     accum_zero_op = tf[:group](accum_zero_ops...)
 
-    sess[:run](tf[:global_variables_initializer]())
+    sess[:run](tf[:variables_initializer](params))
     sess[:run](accum_zero_op)
 
     TFFunction(sess, inputs, output,
@@ -93,6 +93,10 @@ Return the TensorFlow Variable that stores the gradient of the given parameter T
 function get_param_grad_tf_var(gen_fn::TFFunction, param::PyObject)
     gen_fn.param_grad_accums[param]
 end
+
+get_session(gen_fn::TFFunction) = gen_fn.sess
+
+runtf(gen_fn::TFFunction, args...) = gen_fn.sess[:run](args...)
 
 function Gen.initialize(gen_fn::TFFunction, args::Tuple, ::Assignment)
     feed_dict = Dict()
@@ -144,11 +148,13 @@ function Gen.backprop_params(trace::TFFunctionTrace, retval_grad)
         feed_dict[tensor] = value
     end
     feed_dict[gen_fn.output_grad] = retval_grad
-    result = gen_fn.sess[:run]([gen_fn.input_grads..., gen_fn.param_grad_add_op], feed_dict=feed_dict)
+    result = gen_fn.sess[:run](
+        [gen_fn.input_grads..., gen_fn.param_grad_add_op], feed_dict=feed_dict)
     @assert length(result) == length(gen_fn.input_grads) + 1
     (result[1:end-1]...,)
 end
 
-export TFFunction, reset_param_grads_tf_op, get_param_grad_tf_var
+export TFFunction
+export reset_param_grads_tf_op, get_param_grad_tf_var, get_session, runtf
 
 end # module GenTF
