@@ -37,7 +37,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "TensorFlow Generative Functions",
     "category": "section",
-    "text": "A TensorFlow computation graph contains both the model(s) being trained as well as the operations that do the training. In contrast, Gen uses a more rigid separation between models (both generative models and inference models) and the operations that act on models. Specifically, models in Gen are defined as (pure functional) generative functions, and the operations that run the models or train the models are defined in separate Julia code. The GenTF package allows users to construct deterministic generative functions of type TFFunction <: GenerativeFunction from a TensorFlow computation graph in which each TensorFlow element is one of the following roles:Role in TFFunction TensorFlow object type\nArgument tf.Tensor produced by tf.placeholder\nTrainable Parameter tf.Variable\nOperation in Body tf.Tensor produced by non-mutating TensorFlow operation (e.g. tf.conv2d)\nN/A tf.Tensor produced by mutating TensorFlow operation (e.g. tf.assign)TensorFlow placeholders play the role of arguments to the generative function. TensorFlow Variables play the role of the trainable parameters of the generative function. Their value is shared across all invocations of the generative function and is managed by the TensorFlow runtime, not Julia. We will discuss how to train these parameters in section Implementing parameter updates. Tensors produced from non-mutating operations comprise the body of the generative function. One of these elements (either an argument parameter, or element of the body) is designated the return value of the generative function. Note that we do not currently permit TensorFlow generative functions to use randomness.To construct a TensorFlow generative function, we first construct the TensorFlow computation graph using the TensorFlow Python API:using Gen\nusing GenTF\nusing PyCall\n\n@pyimport tensorflow as tf\n@pyimport tensorflow.nn as nn\n\nxs = tf.placeholder(tf.float64) # N x 784\nW = tf.Variable(zeros(Float64, 784, 10))\nb = tf.Variable(zeros(Float64, 10))\nprobs = nn.softmax(tf.add(tf.matmul(xs, W), b), axis=1) # N x 10Then we construct a TFFunction from the TensorFlow graph objects. The first argument to TFFunction is the TensorFlow session, followed by a Vector of trainable parameters (W and b), a Vector of arguments (xs), and finally the return value (probs).sess = tf.Session()\ntf_func = TFFunction(sess, [W, b], [xs], probs)The return value must be a differentiable function of each argument and each parameter. Note that the return value does not need to be a scalar. TensorFlow computations for gradients with respect to the arguments and with respect to the parameters are automatically generated when constructing the TFFunction.Values for the parameters are managed by the TensorFlow runtime. The value of a trainable parameter can be obtained in Julia using the reference to the Python Variable object:W_value = sess[:run](W)"
+    "text": "A TensorFlow computation graph contains both the model(s) being trained as well as the operations that do the training. In contrast, Gen uses a more rigid separation between models (both generative models and inference models) and the operations that act on models. Specifically, models in Gen are defined as (pure functional) generative functions, and the operations that run the models or train the models are defined in separate Julia code. The GenTF package allows users to construct deterministic generative functions of type TFFunction <: GenerativeFunction from a TensorFlow computation graph in which each TensorFlow element is one of the following roles:Role in TFFunction TensorFlow object type\nArgument tf.Tensor produced by tf.placeholder\nTrainable Parameter tf.Variable\nOperation in Body tf.Tensor produced by non-mutating TensorFlow operation (e.g. tf.conv2d)\nN/A tf.Tensor produced by mutating TensorFlow operation (e.g. tf.assign)TensorFlow placeholders play the role of arguments to the generative function. TensorFlow Variables play the role of the trainable parameters of the generative function. Their value is shared across all invocations of the generative function and is managed by the TensorFlow runtime, not Julia. We will discuss how to train these parameters in section Implementing parameter updates. Tensors produced from non-mutating operations comprise the body of the generative function. One of these elements (either an argument parameter, or element of the body) is designated the return value of the generative function. Note that we do not currently permit TensorFlow generative functions to use randomness.To construct a TensorFlow generative function, we first construct the TensorFlow computation graph using the TensorFlow Python API:using Gen\nusing GenTF\nusing PyCall\n\n@pyimport tensorflow as tf\n@pyimport tensorflow.nn as nn\n\nxs = tf.placeholder(tf.float64) # N x 784\nW = tf.Variable(zeros(Float64, 784, 10))\nb = tf.Variable(zeros(Float64, 10))\nprobs = nn.softmax(tf.add(tf.matmul(xs, W), b), axis=1) # N x 10Then we construct a TFFunction from the TensorFlow graph objects. The first argument to TFFunction is the TensorFlow session, followed by a Vector of trainable parameters (W and b), a Vector of arguments (xs), and finally the return value (probs).sess = tf.Session()\ntf_func = TFFunction([W, b], [xs], probs, sess)The return value must be a differentiable function of each argument and each parameter. Note that the return value does not need to be a scalar. TensorFlow computations for gradients with respect to the arguments and with respect to the parameters are automatically generated when constructing the TFFunction.If a session is not provided a new session is created:tf_func = TFFunction([W, b], [xs], probs)Values for the parameters are managed by the TensorFlow runtime. The TensorFlow session that contains the parameter values is obtained with:sess = get_session(tf_func)The value of a trainable parameter can be obtained in Julia by fetching the Python Variable object (e.g. \'W\'):W_value = sess[:run](W)Equivalently, this can be done using a more concise syntax with the runtf method:W_value = runtf(tf_func, W)"
 },
 
 {
@@ -85,7 +85,23 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "GenTF.TFFunction",
     "category": "type",
-    "text": "gen_fn = TFFunction(sess::PyObject, params::Vector{PyObject},\n                    inputs::Vector{PyObject}, output::PyObject)\n\nConstruct a TensorFlow generative function from elements of a TensorFlow computation graph.\n\n\n\n\n\n"
+    "text": "gen_fn = TFFunction(params::Vector{PyObject},\n                    inputs::Vector{PyObject}, output::PyObject,\n                    sess::PyObject=tf.Session())\n\nConstruct a TensorFlow generative function from elements of a TensorFlow computation graph.\n\n\n\n\n\n"
+},
+
+{
+    "location": "#GenTF.get_session",
+    "page": "Home",
+    "title": "GenTF.get_session",
+    "category": "function",
+    "text": "get_session(gen_fn::TFFunction)\n\nReturn the TensorFlow session associated with the given function.\n\n\n\n\n\n"
+},
+
+{
+    "location": "#GenTF.runtf",
+    "page": "Home",
+    "title": "GenTF.runtf",
+    "category": "function",
+    "text": "runtf(gen_fn::TFFunction, ...)\n\nFetch values or run operations in the TensorFlow session associated with the given function.\n\nSyntactic sugar for get_session(gen_fn)[:run](args...)\n\n\n\n\n\n"
 },
 
 {
@@ -109,7 +125,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "API",
     "category": "section",
-    "text": "TFFunction\nget_param_grad_tf_var\nreset_param_grads_tf_op"
+    "text": "TFFunction\nget_session\nruntf\nget_param_grad_tf_var\nreset_param_grads_tf_op"
 },
 
 ]}
