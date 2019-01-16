@@ -117,7 +117,7 @@ version = "0.5.0"
 
 [[Gen]]
 deps = ["DataStructures", "Distributions", "FunctionalCollections", "JSON", "LinearAlgebra", "Random", "ReverseDiff", "SpecialFunctions"]
-git-tree-sha1 = "c7faf72e5744216db77e3361aac354825beaef72"
+git-tree-sha1 = "51597756590d755175293c72cc14a22ae24e2700"
 repo-rev = "master"
 repo-url = "https://github.com/probcomp/Gen"
 uuid = "ea4f424c-a589-11e8-07c0-fd5c91b9da4a"
