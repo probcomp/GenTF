@@ -85,7 +85,7 @@ end
 
 @pyimport tensorflow.train as train
 
-opt = Optimizer(GradientDescentConf(0.00001, 1000000), Dict(net => [W, b]))
+update = ParameterUpdate(GradientDescent(0.00001, 1000000), Dict(net => [W, b]))
 for i=1:10000
 
     (xs, ys) = next_batch(loader, 100)
@@ -103,7 +103,7 @@ for i=1:10000
     backprop_params(trace, nothing)
 
     # performs SGD update and then resets gradient accumulators
-    apply_update!(opt)
+    apply!(update)
 
     println("i: $i, weight: $weight")
 end

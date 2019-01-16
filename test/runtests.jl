@@ -59,11 +59,11 @@ end
     for (i, y) in enumerate(ys)
         constraints["y-$i"] = y
     end
-    opt = Optimizer(GradientDescentConf(0.01, 100000), Dict(tf_func => [w]))
+    update = ParamUpdate(GradientDescent(0.01, 100000), tf_func => [w])
     for iter=1:1000
         (trace, _) = initialize(model, (xs,), constraints)
         backprop_params(trace, nothing)
-        apply_update!(opt)
+        apply!(update)
     end
     w_val = runtf(tf_func, w)
     @test isapprox(w_val[1], -2., atol=0.001)

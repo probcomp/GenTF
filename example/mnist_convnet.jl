@@ -125,7 +125,7 @@ end
 
 @pyimport tensorflow.train as train
 
-opt = Optimizer(ADAMConf(1e-4, 0.9, 0.999, 1e-08), Dict(net => params))
+update = ParameterUpdate(ADAM(1e-4, 0.9, 0.999, 1e-08), Dict(net => params))
 for i=1:1000
 
     (xs, ys) = next_batch(loader, 100)
@@ -143,7 +143,7 @@ for i=1:1000
     backprop_params(trace, nothing)
 
     # performs SGD update and then resets gradient accumulators
-    apply_update!(opt)
+    apply!(update)
 
     println("i: $i, weight: $weight")
 end
