@@ -53,27 +53,17 @@ end
         end
     end
 
-    w_grad = get_param_grad_tf_var(tf_func, w)
-    gradient_step = tf.assign_add(w, tf.scalar_mul(tf.constant(0.01, dtype=tf.float32), w_grad))
-
     xs = Float64[-2, -1, 1, 2]
     ys = -2 * xs .+ 1
     constraints = DynamicAssignment()
     for (i, y) in enumerate(ys)
         constraints["y-$i"] = y
     end
+    opt = Optimizer(GradientDescentConf(0.01, 100000), Dict(tf_func => [w]))
     for iter=1:1000
         (trace, _) = initialize(model, (xs,), constraints)
         backprop_params(trace, nothing)
-
-        # NOTE: attempting to bundle the two commands into one ('update')
-        # worked on one environment but failed in another:
-        #@pywith tf.control_dependencies([gradient_step]) begin
-            #update = tf.group(reset_param_grads_tf_op(tf_func))
-        #end
-
-        runtf(tf_func, gradient_step)
-        runtf(tf_func, reset_param_grads_tf_op(tf_func))
+        apply_update!(opt)
     end
     w_val = runtf(tf_func, w)
     @test isapprox(w_val[1], -2., atol=0.001)

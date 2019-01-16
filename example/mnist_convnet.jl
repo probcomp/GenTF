@@ -104,7 +104,7 @@ probs = nn.softmax(tf.add(tf.matmul(h_fc1, W_fc2), b_fc2), axis=1) # N x 10
 
 const sess = tf.Session()
 const params = [W_conv1, b_conv1, W_conv2, b_conv2, W_fc1, b_fc1, W_fc2, b_fc2]
-const net = TFFunction(sess, params, [xs], probs)
+const net = TFFunction(params, [xs], probs, sess)
 
 @gen function f(xs::Matrix{Float64})
     (N, D) = size(xs)
@@ -125,26 +125,8 @@ end
 
 @pyimport tensorflow.train as train
 
-function make_update()
-    opt = train.AdamOptimizer(1e-4)
-    grads_and_vars = []
-    for param in params
-        grad = tf.negative(get_param_grad_tf_var(net, param))
-        push!(grads_and_vars, (grad, param))
-    end
-    sgd_step = opt[:apply_gradients](grads_and_vars)
-    update = nothing
-    @pywith tf.control_dependencies([sgd_step]) begin
-        update = tf.group(reset_param_grads_tf_op(net))
-    end
-    update
-end
-
-const update = make_update()
-
-sess[:run](tf.global_variables_initializer())
-
-for i=1:10000
+opt = Optimizer(ADAMConf(1e-4, 0.9, 0.999, 1e-08), Dict(net => params))
+for i=1:1000
 
     (xs, ys) = next_batch(loader, 100)
 
@@ -161,7 +143,7 @@ for i=1:10000
     backprop_params(trace, nothing)
 
     # performs SGD update and then resets gradient accumulators
-    sess[:run](update)
+    apply_update!(opt)
 
     println("i: $i, weight: $weight")
 end

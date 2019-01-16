@@ -31,6 +31,7 @@ struct TFFunction <: GenerativeFunction{Any,TFFunctionTrace}
     output_grad::PyObject
     param_grad_add_op::PyObject
     accum_zero_op::PyObject
+    gradient_scaler::PyObject
 end
 
 function Gen.has_argument_grads(gen_fn::TFFunction)
@@ -58,12 +59,11 @@ function TFFunction(params, inputs, output, sess::PyObject=tf[:Session]())
     end
 
     # the operation that increments the gradient accumulators
+    scalar = tf[:placeholder](dtype=output[:dtype], shape=())
     param_grad_add_ops = []
     for (param, grad) in zip(params, param_grad_increments)
         accum = param_grad_accums[param]
-        println("accum: $accum")
-        println("grad: $grad")
-        push!(param_grad_add_ops, tf[:assign_add](accum, grad))
+        push!(param_grad_add_ops, tf[:assign_add](accum, tf[:scalar_mul](scalar, grad)))
     end
     param_grad_add_op = tf[:group](param_grad_add_ops...)
 
@@ -79,7 +79,7 @@ function TFFunction(params, inputs, output, sess::PyObject=tf[:Session]())
 
     TFFunction(sess, inputs, output,
         param_grad_accums, input_grads, output_grad,
-        param_grad_add_op, accum_zero_op)
+        param_grad_add_op, accum_zero_op, scalar)
 end
 
 """
@@ -87,6 +87,10 @@ end
 Return the TensorFlow operation Tensor that resets the gradients of all parameters of the given function to zero.
 """
 reset_param_grads_tf_op(gen_fn::TFFunction) = gen_fn.accum_zero_op
+
+function Gen.get_params(gen_fn::TFFunction)
+    keys(gen_fn.param_grad_accums)
+end
 
 """
     var::PyObject = get_param_grad_tf_var(gen_fn::TFFunction, param::PyObject)
@@ -154,18 +158,67 @@ function Gen.backprop_trace(trace::TFFunctionTrace, ::AddressSet, retval_grad)
     ((input_grads...,), EmptyAssignment(), EmptyAssignment())
 end
 
-function Gen.backprop_params(trace::TFFunctionTrace, retval_grad)
+function Gen.backprop_params(trace::TFFunctionTrace, retval_grad, scaler)
     gen_fn = get_gen_fn(trace)
     args = get_args(trace)
     feed_dict = Dict()
     for (tensor, value) in zip(gen_fn.inputs, args)
         feed_dict[tensor] = value
     end
+    feed_dict[gen_fn.gradient_scaler] = scaler
     feed_dict[gen_fn.output_grad] = retval_grad
     result = gen_fn.sess[:run](
         [gen_fn.input_grads..., gen_fn.param_grad_add_op], feed_dict=feed_dict)
     @assert length(result) == length(gen_fn.input_grads) + 1
     (result[1:end-1]...,)
+end
+
+#####################
+# parameter updates #
+#####################
+
+struct GradientDescentTFFunctionState
+    op::PyObject
+    gen_fn::TFFunction
+end
+
+function Gen.init(conf::GradientDescentConf, gen_fn::TFFunction, param_list)
+    # TODO
+    opt = tf[:train][:GradientDescentOptimizer](conf.step_size_init)
+    grads_and_vars = []
+    for param in param_list
+        push!(grads_and_vars,
+            (tf[:negative](get_param_grad_tf_var(gen_fn, param)), param))
+    end
+    GradientDescentTFFunctionState(opt[:apply_gradients](grads_and_vars), gen_fn)
+end
+
+function Gen.apply_update!(state::GradientDescentTFFunctionState)
+    runtf(state.gen_fn, state.op)
+    runtf(state.gen_fn, reset_param_grads_tf_op(state.gen_fn))
+end
+
+struct ADAMTFFunctionState
+    op::PyObject
+    gen_fn::TFFunction
+end
+
+function Gen.init(conf::ADAMConf, gen_fn::TFFunction, param_list)
+    opt = tf[:train][:AdamOptimizer](conf.learning_rate,
+        conf.beta1, conf.beta2, conf.epsilon)
+    grads_and_vars = []
+    for param in param_list
+        push!(grads_and_vars,
+            (tf[:negative](get_param_grad_tf_var(gen_fn, param)), param))
+    end
+    op = opt[:apply_gradients](grads_and_vars)
+    runtf(gen_fn, tf[:variables_initializer](opt[:variables]()))
+    ADAMTFFunctionState(op, gen_fn)
+end
+
+function Gen.apply_update!(state::ADAMTFFunctionState)
+    runtf(state.gen_fn, state.op)
+    runtf(state.gen_fn, reset_param_grads_tf_op(state.gen_fn))
 end
 
 export TFFunction

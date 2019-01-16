@@ -63,7 +63,7 @@ b = tf.Variable(zeros(Float64, 10))
 probs = nn.softmax(tf.add(tf.matmul(xs, W), b), axis=1) # N x 10
 
 const sess = tf.Session()
-const net = TFFunction(sess, [W, b], [xs], probs)
+const net = TFFunction([W, b], [xs], probs, sess)
 
 @gen function f(xs::Matrix{Float64})
     (N, D) = size(xs)
@@ -85,22 +85,8 @@ end
 
 @pyimport tensorflow.train as train
 
-function make_update()
-    opt = train.GradientDescentOptimizer(.00001)
-    grads_and_vars = []
-    push!(grads_and_vars, (tf.negative(get_param_grad_tf_var(net, W)), W))
-    push!(grads_and_vars, (tf.negative(get_param_grad_tf_var(net, b)), b))
-    sgd_step = opt[:apply_gradients](grads_and_vars)
-    update = nothing
-    @pywith tf.control_dependencies([sgd_step]) begin
-        update = tf.group(reset_param_grads_tf_op(net))
-    end
-    update
-end
-
-const update = make_update()
-
-for i=1:100000
+opt = Optimizer(GradientDescentConf(0.00001, 1000000), Dict(net => [W, b]))
+for i=1:10000
 
     (xs, ys) = next_batch(loader, 100)
 
@@ -117,7 +103,7 @@ for i=1:100000
     backprop_params(trace, nothing)
 
     # performs SGD update and then resets gradient accumulators
-    sess[:run](update)
+    apply_update!(opt)
 
     println("i: $i, weight: $weight")
 end
