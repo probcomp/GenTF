@@ -125,7 +125,7 @@ end
 
 @pyimport tensorflow.train as train
 
-update = ParameterUpdate(ADAM(1e-4, 0.9, 0.999, 1e-08), Dict(net => params))
+update = ParamUpdate(ADAM(1e-4, 0.9, 0.999, 1e-08), net)
 for i=1:1000
 
     (xs, ys) = next_batch(loader, 100)

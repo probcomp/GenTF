@@ -190,7 +190,9 @@ function Gen.init(conf::GradientDescent, gen_fn::TFFunction, param_list)
         push!(grads_and_vars,
             (tf[:negative](get_param_grad_tf_var(gen_fn, param)), param))
     end
-    GradientDescentTFFunctionState(opt[:apply_gradients](grads_and_vars), gen_fn)
+    op = opt[:apply_gradients](grads_and_vars)
+    runtf(gen_fn, tf[:variables_initializer](opt[:variables]()))
+    GradientDescentTFFunctionState(op, gen_fn)
 end
 
 function Gen.apply_update!(state::GradientDescentTFFunctionState)

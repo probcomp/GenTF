@@ -85,7 +85,7 @@ end
 
 @pyimport tensorflow.train as train
 
-update = ParameterUpdate(GradientDescent(0.00001, 1000000), Dict(net => [W, b]))
+update = ParamUpdate(GradientDescent(0.00001, 1000000), net => [W, b])
 for i=1:10000
 
     (xs, ys) = next_batch(loader, 100)
