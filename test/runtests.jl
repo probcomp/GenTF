@@ -70,3 +70,14 @@ end
     @test isapprox(w_val[2], 1., atol=0.01)
     
 end
+
+@testset "untraced evaluation" begin
+    init_W = rand(Float32, 2, 3)
+    W = tf.get_variable("W2", dtype=tf.float32, initializer=init_W)
+    x = tf.placeholder(tf.float32, shape=(3,), name="x")
+    y = tf.squeeze(tf.matmul(W, tf.expand_dims(x, axis=1)), axis=1)
+    foo = TFFunction([W], [x], y)
+    x_val = [1., 2., 3.]
+    y_val = foo(x_val)
+    @test isapprox(y_val, init_W * x_val, atol=1e-6)
+end

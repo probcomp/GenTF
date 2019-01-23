@@ -34,6 +34,11 @@ struct TFFunction <: GenerativeFunction{Any,TFFunctionTrace}
     gradient_scaler::PyObject
 end
 
+function (gen_fn::TFFunction)(args...)
+    (trace, _) = initialize(gen_fn, args, EmptyAssignment())
+    get_retval(trace)
+end
+
 function Gen.has_argument_grads(gen_fn::TFFunction)
     ((true for _ in gen_fn.inputs)...,)
 end
