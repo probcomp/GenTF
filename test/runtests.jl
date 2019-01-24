@@ -59,7 +59,7 @@ end
     for (i, y) in enumerate(ys)
         constraints["y-$i"] = y
     end
-    update = ParamUpdate(GradientDescent(0.01, 100000), tf_func => [w])
+    update = ParamUpdate(FixedStepGradientDescent(0.01), tf_func => [w])
     for iter=1:1000
         (trace, _) = initialize(model, (xs,), constraints)
         backprop_params(trace, nothing)

@@ -182,14 +182,13 @@ end
 # parameter updates #
 #####################
 
-struct GradientDescentTFFunctionState
+struct FixedStepGradientDescentTFFunctionState
     op::PyObject
     gen_fn::TFFunction
 end
 
-function Gen.init(conf::GradientDescent, gen_fn::TFFunction, param_list)
-    # TODO this is not actually changing the step size over time
-    opt = tf[:train][:GradientDescentOptimizer](conf.step_size_init)
+function Gen.init_update_state(conf::FixedStepGradientDescent, gen_fn::TFFunction, param_list)
+    opt = tf[:train][:GradientDescentOptimizer](conf.step_size)
     grads_and_vars = []
     for param in param_list
         push!(grads_and_vars,
@@ -197,10 +196,10 @@ function Gen.init(conf::GradientDescent, gen_fn::TFFunction, param_list)
     end
     op = opt[:apply_gradients](grads_and_vars)
     runtf(gen_fn, tf[:variables_initializer](opt[:variables]()))
-    GradientDescentTFFunctionState(op, gen_fn)
+    FixedStepGradientDescentTFFunctionState(op, gen_fn)
 end
 
-function Gen.apply_update!(state::GradientDescentTFFunctionState)
+function Gen.apply_update!(state::FixedStepGradientDescentTFFunctionState)
     runtf(state.gen_fn, state.op)
     runtf(state.gen_fn, reset_param_grads_tf_op(state.gen_fn))
 end
@@ -210,7 +209,7 @@ struct ADAMTFFunctionState
     gen_fn::TFFunction
 end
 
-function Gen.init(conf::ADAM, gen_fn::TFFunction, param_list)
+function Gen.init_update_state(conf::ADAM, gen_fn::TFFunction, param_list)
     opt = tf[:train][:AdamOptimizer](conf.learning_rate,
         conf.beta1, conf.beta2, conf.epsilon)
     grads_and_vars = []
