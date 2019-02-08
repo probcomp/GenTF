@@ -109,11 +109,11 @@ const net = TFFunction(params, [xs], probs, sess)
 @gen function f(xs::Matrix{Float64})
     (N, D) = size(xs)
     @assert D == 784
-    probs = @addr(net(xs), :net)
+    probs = @trace(net(xs), :net)
     @assert size(probs) == (N, 10)
     ys = Vector{Int}(undef, N)
     for i=1:N
-        ys[i] = @addr(categorical(probs[i,:]), (:y, i))
+        ys[i] = @trace(categorical(probs[i,:]), (:y, i))
     end
     return ys
 end
@@ -132,15 +132,15 @@ for i=1:1000
 
     @assert size(xs) == (100, 784)
     @assert size(ys) == (100,)
-    constraints = DynamicAssignment()
+    constraints = choicemap()
     for (i, y) in enumerate(ys)
         constraints[(:y, i)] = y
     end
 
-    (trace, weight) = initialize(f, (xs,), constraints)
+    (trace, weight) = generate(f, (xs,), constraints)
 
     # increments gradient accumulators
-    backprop_params(trace, nothing)
+    accumulate_param_gradients!(trace, nothing)
 
     # performs SGD update and then resets gradient accumulators
     apply!(update)
