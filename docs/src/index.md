@@ -132,7 +132,7 @@ W_value = runtf(tf_func, W)
 
 Suppose we run `initialize` on the `TFFunction`:
 ```julia
-(trace, weight) = initialize(tf_func, (xs_val,), EmptyAssignment())
+(trace, weight) = initialize(tf_func, (xs_val,), EmptyChoiceMap())
 ```
 
 - The TensorFlow runtime computes the return value for the given values of the arguments and the current values of of the trainable parameters.

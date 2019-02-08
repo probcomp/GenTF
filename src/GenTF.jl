@@ -17,7 +17,7 @@ end
 
 Gen.get_args(trace::TFFunctionTrace) = trace.args
 Gen.get_retval(trace::TFFunctionTrace) = trace.retval
-Gen.get_assmt(::TFFunctionTrace) = EmptyAssignment()
+Gen.get_choices(::TFFunctionTrace) = EmptyChoiceMap()
 Gen.get_score(::TFFunctionTrace) = 0.
 Gen.get_gen_fn(trace::TFFunctionTrace) = trace.gen_fn
 
@@ -35,7 +35,7 @@ struct TFFunction <: GenerativeFunction{Any,TFFunctionTrace}
 end
 
 function (gen_fn::TFFunction)(args...)
-    (trace, _) = initialize(gen_fn, args, EmptyAssignment())
+    (trace, _) = generate(gen_fn, args, EmptyChoiceMap())
     get_retval(trace)
 end
 
@@ -54,13 +54,17 @@ Construct a TensorFlow generative function from elements of a TensorFlow computa
 """
 function TFFunction(params, inputs, output, sess::PyObject=tf[:Session]())
     output_grad = tf[:placeholder](output[:dtype])
+
+    # TODO warn if this is 'nothing'
     input_grads = tf[:gradients]([output], inputs, [output_grad])
+
     param_grad_increments = tf[:gradients]([output], params, [output_grad])
 
     # gradient accumulators
     param_grad_accums = Dict{PyObject,PyObject}()
     for param in params
         param_grad_accums[param] = tf[:Variable](param)
+        # TODO warn if this is 'nothing'
     end
 
     # the operation that increments the gradient accumulators
@@ -69,6 +73,7 @@ function TFFunction(params, inputs, output, sess::PyObject=tf[:Session]())
     for (param, grad) in zip(params, param_grad_increments)
         accum = param_grad_accums[param]
         push!(param_grad_add_ops, tf[:assign_add](accum, tf[:scalar_mul](scalar, grad)))
+        # TODO warn if this is 'nothing'
     end
     param_grad_add_op = tf[:group](param_grad_add_ops...)
 
@@ -121,7 +126,7 @@ Syntactic sugar for `get_session(gen_fn)[:run](args...)`
 """
 runtf(gen_fn::TFFunction, args...) = gen_fn.sess[:run](args...)
 
-function Gen.initialize(gen_fn::TFFunction, args::Tuple, ::Assignment)
+function Gen.generate(gen_fn::TFFunction, args::Tuple, ::ChoiceMap)
     feed_dict = Dict()
     for (tensor, value) in zip(gen_fn.inputs, args)
         feed_dict[tensor] = value
@@ -132,26 +137,22 @@ function Gen.initialize(gen_fn::TFFunction, args::Tuple, ::Assignment)
 end
 
 function Gen.propose(gen_fn::TFFunction, args::Tuple)
-    (trace, _) = initialize(gen_fn, args, EmptyAssignment())
+    (trace, _) = generate(gen_fn, args, EmptyChoiceMap())
     retval = get_retval(trace)
-    (EmptyAssignment(), 0., retval)
+    (EmptyChoiceMap(), 0., retval)
 end
 
 Gen.project(::TFFunctionTrace, ::AddressSet) = 0.
 
-function Gen.force_update(trace::TFFunctionTrace, ::Tuple, ::Any, ::Assignment)
-    (trace, 0., EmptyAssignment(), DefaultRetDiff())
+function Gen.update(trace::TFFunctionTrace, ::Tuple, ::Any, ::ChoiceMap)
+    (trace, 0., DefaultRetDiff(), EmptyChoiceMap())
 end
 
-function Gen.fix_update(trace::TFFunctionTrace, ::Tuple, ::Any, ::Assignment)
-    (trace, 0., EmptyAssignment(), DefaultRetDiff())
-end
-
-function Gen.free_update(trace::TFFunctionTrace, ::Tuple, ::Any, ::AddressSet)
+function Gen.regenerate(trace::TFFunctionTrace, ::Tuple, ::Any, ::AddressSet)
     (trace, 0., DefaultRetDiff())
 end
 
-function Gen.backprop_trace(trace::TFFunctionTrace, ::AddressSet, retval_grad)
+function Gen.choice_gradients(trace::TFFunctionTrace, ::AddressSet, retval_grad)
     gen_fn = get_gen_fn(trace)
     args = get_args(trace)
     feed_dict = Dict()
@@ -160,10 +161,10 @@ function Gen.backprop_trace(trace::TFFunctionTrace, ::AddressSet, retval_grad)
     end
     feed_dict[gen_fn.output_grad] = retval_grad
     input_grads = gen_fn.sess[:run](gen_fn.input_grads, feed_dict=feed_dict)
-    ((input_grads...,), EmptyAssignment(), EmptyAssignment())
+    ((input_grads...,), EmptyChoiceMap(), EmptyChoiceMap())
 end
 
-function Gen.backprop_params(trace::TFFunctionTrace, retval_grad, scaler)
+function Gen.accumulate_param_gradients!(trace::TFFunctionTrace, retval_grad, scaler)
     gen_fn = get_gen_fn(trace)
     args = get_args(trace)
     feed_dict = Dict()

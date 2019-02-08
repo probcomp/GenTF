@@ -23,13 +23,13 @@ end
     foo = TFFunction([W], [x], y)
 
     x = rand(Float32, 3)
-    (trace, weight) = initialize(foo, (x,))
+    (trace, weight) = generate(foo, (x,))
     @test weight == 0.
     y = get_retval(trace)
     @test isapprox(y, init_W * x)
     y_grad = rand(Float32, 2)
 
-    (x_grad,) = backprop_params(trace, y_grad)
+    (x_grad,) = accumulate_param_gradients!(trace, y_grad)
     @test isapprox(x_grad, init_W' * y_grad)
 
     W_grad = get_param_grad_tf_var(foo, W)
@@ -47,22 +47,22 @@ end
     tf_func = TFFunction([w], [xs], y_means)
 
     @gen function model(xs::Vector{Float64})
-        y_means = @addr(tf_func(xs), :tf_func)
+        y_means = @trace(tf_func(xs), :tf_func)
         for i=1:length(xs)
-            @addr(normal(y_means[i], 1.), "y-$i")
+            @trace(normal(y_means[i], 1.), "y-$i")
         end
     end
 
     xs = Float64[-2, -1, 1, 2]
     ys = -2 * xs .+ 1
-    constraints = DynamicAssignment()
+    constraints = choicemap()
     for (i, y) in enumerate(ys)
         constraints["y-$i"] = y
     end
     update = ParamUpdate(FixedStepGradientDescent(0.01), tf_func => [w])
     for iter=1:1000
-        (trace, _) = initialize(model, (xs,), constraints)
-        backprop_params(trace, nothing)
+        (trace, _) = generate(model, (xs,), constraints)
+        accumulate_param_gradients!(trace, nothing)
         apply!(update)
     end
     w_val = runtf(tf_func, w)
