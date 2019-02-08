@@ -45,7 +45,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "What happens during Gen.initialize",
     "category": "section",
-    "text": "Suppose we run initialize on the TFFunction:(trace, weight) = initialize(tf_func, (xs_val,), EmptyAssignment())The TensorFlow runtime computes the return value for the given values of the arguments and the current values of of the trainable parameters.\nThe return value is obtained by Julia from TensorFlow and stored in the trace (it is accessible with get_retval(trace)).\nThe given argument values are also stored in the trace (accessible with get_args(trace)).Note that we pass an empty assignment to initialize because a TFFunction cannot make any random choices that could be constrained."
+    "text": "Suppose we run initialize on the TFFunction:(trace, weight) = initialize(tf_func, (xs_val,), EmptyChoiceMap())The TensorFlow runtime computes the return value for the given values of the arguments and the current values of of the trainable parameters.\nThe return value is obtained by Julia from TensorFlow and stored in the trace (it is accessible with get_retval(trace)).\nThe given argument values are also stored in the trace (accessible with get_args(trace)).Note that we pass an empty assignment to initialize because a TFFunction cannot make any random choices that could be constrained."
 },
 
 {
