@@ -126,18 +126,22 @@ Syntactic sugar for `get_session(gen_fn)[:run](args...)`
 """
 runtf(gen_fn::TFFunction, args...) = gen_fn.sess[:run](args...)
 
-function Gen.generate(gen_fn::TFFunction, args::Tuple, ::ChoiceMap)
+function Gen.simulate(gen_fn::TFFunction, args::Tuple)
     feed_dict = Dict()
     for (tensor, value) in zip(gen_fn.inputs, args)
         feed_dict[tensor] = value
     end
     retval = gen_fn.sess[:run](gen_fn.output, feed_dict=feed_dict)
-    trace = TFFunctionTrace(gen_fn, args, convert(Array{Float64},retval))
+    TFFunctionTrace(gen_fn, args, convert(Array{Float64},retval))
+end
+
+function Gen.generate(gen_fn::TFFunction, args::Tuple, ::ChoiceMap)
+    trace = simulate(gen_fn, args)
     (trace, 0.)
 end
 
 function Gen.propose(gen_fn::TFFunction, args::Tuple)
-    (trace, _) = generate(gen_fn, args, EmptyChoiceMap())
+    trace = simulate(gen_fn, args)
     retval = get_retval(trace)
     (EmptyChoiceMap(), 0., retval)
 end

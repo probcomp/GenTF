@@ -23,12 +23,20 @@ end
     foo = TFFunction([W], [x], y)
 
     x = rand(Float32, 3)
+
+    # test generate
     (trace, weight) = generate(foo, (x,))
     @test weight == 0.
     y = get_retval(trace)
     @test isapprox(y, init_W * x)
-    y_grad = rand(Float32, 2)
 
+    # test simulate
+    trace = simulate(foo, (x,))
+    y = get_retval(trace)
+    @test isapprox(y, init_W * x)
+
+    # test accumulate_param_gradients!
+    y_grad = rand(Float32, 2)
     (x_grad,) = accumulate_param_gradients!(trace, y_grad)
     @test isapprox(x_grad, init_W' * y_grad)
 
