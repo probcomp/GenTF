@@ -9,7 +9,7 @@ function __init__()
     copy!(tf, pyimport("tensorflow"))
 end
 
-struct TFFunctionTrace
+struct TFFunctionTrace <: Gen.Trace
     gen_fn::GenerativeFunction
     args::Tuple
     retval::Any
