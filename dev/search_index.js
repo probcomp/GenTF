@@ -41,27 +41,27 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "#What-happens-during-Gen.initialize-1",
+    "location": "#What-happens-during-[Gen.generate](https://probcomp.github.io/Gen/dev/ref/gfi/#Gen.generate)-1",
     "page": "Home",
-    "title": "What happens during Gen.initialize",
+    "title": "What happens during Gen.generate",
     "category": "section",
-    "text": "Suppose we run initialize on the TFFunction:(trace, weight) = initialize(tf_func, (xs_val,), EmptyChoiceMap())The TensorFlow runtime computes the return value for the given values of the arguments and the current values of of the trainable parameters.\nThe return value is obtained by Julia from TensorFlow and stored in the trace (it is accessible with get_retval(trace)).\nThe given argument values are also stored in the trace (accessible with get_args(trace)).Note that we pass an empty assignment to initialize because a TFFunction cannot make any random choices that could be constrained."
+    "text": "Suppose we run generate on the TFFunction:(trace, weight) = generate(tf_func, (xs_val,), choicemap())The TensorFlow runtime computes the return value for the given values of the arguments and the current values of of the trainable parameters.\nThe return value is obtained by Julia from TensorFlow and stored in the trace (it is accessible with get_retval(trace)).\nThe given argument values are also stored in the trace (accessible with get_args(trace)).Note that we pass an empty assignment to generate because a TFFunction cannot make any random choices that could be constrained."
 },
 
 {
-    "location": "#What-happens-during-Gen.backprop_trace-1",
+    "location": "#What-happens-during-[Gen.choice_gradients](https://probcomp.github.io/Gen/dev/ref/gfi/#Gen.choice_gradients)-1",
     "page": "Home",
-    "title": "What happens during Gen.backprop_trace",
+    "title": "What happens during Gen.choice_gradients",
     "category": "section",
-    "text": "When running backprop_trace with a trace produced from a TFFunction, we must pass a gradient value for the return value. This value should be a Julia Array with the same shape as the return value.((xs_grad,), _, _) = backprop_trace(trace, EmptyAddressSet(), retval_grad)The gradients with respect to each argument are computed by the TensorFlow runtime.\nThe values of the gradient are converted to Julia values and returned.Note that we pass an empty selection because a TFFunction does not make any random choices that could be selected."
+    "text": "When running choice_gradients with a trace produced from a TFFunction, we must pass a gradient value for the return value. This value should be a Julia Array with the same shape as the return value.((xs_grad,), _, _) = choice_gradients(trace, select(), retval_grad)The gradients with respect to each argument are computed by the TensorFlow runtime.\nThe values of the gradient are converted to Julia values and returned.Note that we pass an empty selection because a TFFunction does not make any random choices that could be selected."
 },
 
 {
-    "location": "#What-happens-during-Gen.backprop_params-1",
+    "location": "#What-happens-during-[Gen.accumulate_param_gradients!](https://probcomp.github.io/Gen/dev/ref/gfi/#Gen.accumulate_param_gradients!)-1",
     "page": "Home",
-    "title": "What happens during Gen.backprop_params",
+    "title": "What happens during Gen.accumulate_param_gradients!",
     "category": "section",
-    "text": "When running backprop_params with a trace produced from a TFFunction, we must pass a gradient value for the return value. This value should be a Julia Array with the same shape as the return value.(xs_grad,) = backprop_params(trace, retval_grad)Like backprop_trace, the method returns the value of the gradient with respect to the arguments\nThe gradient with respect to each trainable parameters is computed by the TensorFlow runtime.\nA gradient accumulator TensorFlow Variable for each trainable parameter is incremented by the corresponding gradient value.The gradient accumulator for a parameter accumulates gradient contributions over multiple invocations of backprop_params. A gradient accumulator TensorFlow Variable value can be obtained from the TFFunction with get_param_grad_tf_var (see API below). The value of all gradient accumulators for a given TFFunction can be reset to zeros with reset_param_grads_tf_op (see API below)."
+    "text": "When running accumulate_param_gradients! with a trace produced from a TFFunction, we must pass a gradient value for the return value. This value should be a Julia Array with the same shape as the return value.(xs_grad,) = accumulate_param_gradients!(trace, retval_grad)Like choice_gradients, the method returns the value of the gradient with respect to the arguments\nThe gradient with respect to each trainable parameters is computed by the TensorFlow runtime.\nA gradient accumulator TensorFlow Variable for each trainable parameter is incremented by the corresponding gradient value.The gradient accumulator for a parameter accumulates gradient contributions over multiple invocations of accumulate_param_gradients!. A gradient accumulator TensorFlow Variable value can be obtained from the TFFunction with get_param_grad_tf_var (see API below). The value of all gradient accumulators for a given TFFunction can be reset to zeros with reset_param_grads_tf_op (see API below)."
 },
 
 {
