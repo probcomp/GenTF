@@ -101,7 +101,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "GenTF.runtf",
     "category": "function",
-    "text": "runtf(gen_fn::TFFunction, ...)\n\nFetch values or run operations in the TensorFlow session associated with the given function.\n\nSyntactic sugar for get_session(gen_fn)[:run](args...)\n\n\n\n\n\n"
+    "text": "runtf(gen_fn::TFFunction, ...)\n\nFetch values or run operations in the TensorFlow session associated with the given function.\n\nSyntactic sugar for get_session(gen_fn).run(args...)\n\n\n\n\n\n"
 },
 
 {
