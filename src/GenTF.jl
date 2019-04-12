@@ -52,40 +52,42 @@ Gen.accepts_output_grad(gen_fn::TFFunction) = true
 
 Construct a TensorFlow generative function from elements of a TensorFlow computation graph.
 """
-function TFFunction(params, inputs, output, sess::PyObject=tf[:Session]())
-    output_grad = tf[:placeholder](output[:dtype])
+function TFFunction(params, inputs, output, sess::PyObject=tf.Session())
+    output_grad = tf.placeholder(output.dtype)
 
     # TODO warn if this is 'nothing'
-    input_grads = tf[:gradients]([output], inputs, [output_grad])
+    input_grads = tf.gradients([output], inputs, [output_grad])
 
-    param_grad_increments = tf[:gradients]([output], params, [output_grad])
+    param_grad_increments = tf.gradients([output], params, [output_grad])
 
     # gradient accumulators
     param_grad_accums = Dict{PyObject,PyObject}()
     for param in params
-        param_grad_accums[param] = tf[:Variable](param)
-        # TODO warn if this is 'nothing'
+        param_grad_accums[param] = tf.Variable(param)
     end
 
     # the operation that increments the gradient accumulators
-    scalar = tf[:placeholder](dtype=output[:dtype], shape=())
+    scalar = tf.placeholder(dtype=output.dtype, shape=())
     param_grad_add_ops = []
     for (param, grad) in zip(params, param_grad_increments)
+        if grad == nothing
+            error("Gradient not found for parameter: $param")
+        end
         accum = param_grad_accums[param]
-        push!(param_grad_add_ops, tf[:assign_add](accum, tf[:scalar_mul](scalar, grad)))
+        push!(param_grad_add_ops, tf.assign_add(accum, tf.scalar_mul(scalar, grad)))
         # TODO warn if this is 'nothing'
     end
-    param_grad_add_op = tf[:group](param_grad_add_ops...)
+    param_grad_add_op = tf.group(param_grad_add_ops...)
 
     # the operation that resets the gradient accumulators to zeros
     accum_zero_ops = []
     for accum in values(param_grad_accums)
-        push!(accum_zero_ops, tf[:assign](accum, tf[:zeros_like](accum)))
+        push!(accum_zero_ops, tf.assign(accum, tf.zeros_like(accum)))
     end
-    accum_zero_op = tf[:group](accum_zero_ops...)
+    accum_zero_op = tf.group(accum_zero_ops...)
 
-    sess[:run](tf[:variables_initializer](params))
-    sess[:run](accum_zero_op)
+    sess.run(tf.variables_initializer(params))
+    sess.run(accum_zero_op)
 
     TFFunction(sess, inputs, output,
         param_grad_accums, input_grads, output_grad,
@@ -122,16 +124,16 @@ get_session(gen_fn::TFFunction) = gen_fn.sess
 
 Fetch values or run operations in the TensorFlow session associated with the given function.
 
-Syntactic sugar for `get_session(gen_fn)[:run](args...)`
+Syntactic sugar for `get_session(gen_fn).run(args...)`
 """
-runtf(gen_fn::TFFunction, args...) = gen_fn.sess[:run](args...)
+runtf(gen_fn::TFFunction, args...) = gen_fn.sess.run(args...)
 
 function Gen.simulate(gen_fn::TFFunction, args::Tuple)
     feed_dict = Dict()
     for (tensor, value) in zip(gen_fn.inputs, args)
         feed_dict[tensor] = value
     end
-    retval = gen_fn.sess[:run](gen_fn.output, feed_dict=feed_dict)
+    retval = gen_fn.sess.run(gen_fn.output, feed_dict=feed_dict)
     TFFunctionTrace(gen_fn, args, convert(Array{Float64},retval))
 end
 
@@ -164,7 +166,7 @@ function Gen.choice_gradients(trace::TFFunctionTrace, ::AddressSet, retval_grad)
         feed_dict[tensor] = value
     end
     feed_dict[gen_fn.output_grad] = retval_grad
-    input_grads = gen_fn.sess[:run](gen_fn.input_grads, feed_dict=feed_dict)
+    input_grads = gen_fn.sess.run(gen_fn.input_grads, feed_dict=feed_dict)
     ((input_grads...,), EmptyChoiceMap(), EmptyChoiceMap())
 end
 
@@ -177,7 +179,7 @@ function Gen.accumulate_param_gradients!(trace::TFFunctionTrace, retval_grad, sc
     end
     feed_dict[gen_fn.gradient_scaler] = scaler
     feed_dict[gen_fn.output_grad] = retval_grad
-    result = gen_fn.sess[:run](
+    result = gen_fn.sess.run(
         [gen_fn.input_grads..., gen_fn.param_grad_add_op], feed_dict=feed_dict)
     @assert length(result) == length(gen_fn.input_grads) + 1
     (result[1:end-1]...,)
@@ -193,14 +195,14 @@ struct FixedStepGradientDescentTFFunctionState
 end
 
 function Gen.init_update_state(conf::FixedStepGradientDescent, gen_fn::TFFunction, param_list)
-    opt = tf[:train][:GradientDescentOptimizer](conf.step_size)
+    opt = tf.train.GradientDescentOptimizer(conf.step_size)
     grads_and_vars = []
     for param in param_list
         push!(grads_and_vars,
-            (tf[:negative](get_param_grad_tf_var(gen_fn, param)), param))
+            (tf.negative(get_param_grad_tf_var(gen_fn, param)), param))
     end
-    op = opt[:apply_gradients](grads_and_vars)
-    runtf(gen_fn, tf[:variables_initializer](opt[:variables]()))
+    op = opt.apply_gradients(grads_and_vars)
+    runtf(gen_fn, tf.variables_initializer(opt.variables()))
     FixedStepGradientDescentTFFunctionState(op, gen_fn)
 end
 
@@ -215,15 +217,15 @@ struct ADAMTFFunctionState
 end
 
 function Gen.init_update_state(conf::ADAM, gen_fn::TFFunction, param_list)
-    opt = tf[:train][:AdamOptimizer](conf.learning_rate,
+    opt = tf.train.AdamOptimizer(conf.learning_rate,
         conf.beta1, conf.beta2, conf.epsilon)
     grads_and_vars = []
     for param in param_list
         push!(grads_and_vars,
-            (tf[:negative](get_param_grad_tf_var(gen_fn, param)), param))
+            (tf.negative(get_param_grad_tf_var(gen_fn, param)), param))
     end
-    op = opt[:apply_gradients](grads_and_vars)
-    runtf(gen_fn, tf[:variables_initializer](opt[:variables]()))
+    op = opt.apply_gradients(grads_and_vars)
+    runtf(gen_fn, tf.variables_initializer(opt.variables()))
     ADAMTFFunctionState(op, gen_fn)
 end
 
