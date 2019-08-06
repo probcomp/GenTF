@@ -26,7 +26,7 @@ struct TFFunction <: GenerativeFunction{Any,TFFunctionTrace}
     inputs::Vector{PyObject}
     output::PyObject
     # map from parameter to parameter gradient accumulator
-    param_grad_accums::Dict{PyObject,PyObject} 
+    param_grad_accums::Dict{PyObject,PyObject}
     input_grads::Vector{PyObject}
     output_grad::PyObject
     param_grad_add_op::PyObject
@@ -148,17 +148,17 @@ function Gen.propose(gen_fn::TFFunction, args::Tuple)
     (EmptyChoiceMap(), 0., retval)
 end
 
-Gen.project(::TFFunctionTrace, ::AddressSet) = 0.
+Gen.project(::TFFunctionTrace, ::Selection) = 0.
 
 function Gen.update(trace::TFFunctionTrace, ::Tuple, ::Any, ::ChoiceMap)
     (trace, 0., DefaultRetDiff(), EmptyChoiceMap())
 end
 
-function Gen.regenerate(trace::TFFunctionTrace, ::Tuple, ::Any, ::AddressSet)
+function Gen.regenerate(trace::TFFunctionTrace, ::Tuple, ::Any, ::Selection)
     (trace, 0., DefaultRetDiff())
 end
 
-function Gen.choice_gradients(trace::TFFunctionTrace, ::AddressSet, retval_grad)
+function Gen.choice_gradients(trace::TFFunctionTrace, ::Selection, retval_grad)
     gen_fn = get_gen_fn(trace)
     args = get_args(trace)
     feed_dict = Dict()
