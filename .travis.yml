@@ -15,6 +15,9 @@ jobs:
       before_install:
       script:
         - julia -e 'using Pkg;
+                    """Use the Conda environment inside Julia, because currently
+                    nothing else works""";
+                    ENV["PYTHON"] = "";
                     Pkg.build("PyCall");
                     using PyCall;
                     pyimport_conda("tensorflow", "tensorflow");
@@ -29,6 +32,9 @@ jobs:
                                     Pkg.develop(PackageSpec(path=pwd()));
                                     Pkg.instantiate();
                                     Pkg.add("PyCall");
+                                    """Use the Conda environment inside Julia,
+                                    because currently nothing else works""";
+                                    ENV["PYTHON"] = "";
                                     Pkg.build("PyCall");
                                     using PyCall;
                                     pyimport_conda("tensorflow", "tensorflow")'
