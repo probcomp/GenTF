@@ -7,6 +7,7 @@ const tf = PyNULL()
 
 function __init__()
     copy!(tf, pyimport("tensorflow"))
+    tf.compat.v1.disable_eager_execution()
 end
 
 struct TFFunctionTrace <: Gen.Trace
@@ -48,12 +49,12 @@ Gen.accepts_output_grad(gen_fn::TFFunction) = true
 """
     gen_fn = TFFunction(params::Vector{PyObject},
                         inputs::Vector{PyObject}, output::PyObject,
-                        sess::PyObject=tf.Session())
+                        sess::PyObject=tf.compat.v1.Session())
 
 Construct a TensorFlow generative function from elements of a TensorFlow computation graph.
 """
-function TFFunction(params, inputs, output, sess::PyObject=tf.Session())
-    output_grad = tf.placeholder(output.dtype)
+function TFFunction(params, inputs, output, sess::PyObject=tf.compat.v1.Session())
+    output_grad = tf.compat.v1.placeholder(output.dtype)
 
     # TODO warn if this is 'nothing'
     input_grads = tf.gradients([output], inputs, [output_grad])
@@ -67,14 +68,14 @@ function TFFunction(params, inputs, output, sess::PyObject=tf.Session())
     end
 
     # the operation that increments the gradient accumulators
-    scalar = tf.placeholder(dtype=output.dtype, shape=())
+    scalar = tf.compat.v1.placeholder(dtype=output.dtype, shape=())
     param_grad_add_ops = []
     for (param, grad) in zip(params, param_grad_increments)
         if grad == nothing
             error("Gradient not found for parameter: $param")
         end
         accum = param_grad_accums[param]
-        push!(param_grad_add_ops, tf.assign_add(accum, tf.scalar_mul(scalar, grad)))
+        push!(param_grad_add_ops, tf.compat.v1.assign_add(accum, tf.scalar_mul(scalar, grad)))
         # TODO warn if this is 'nothing'
     end
     param_grad_add_op = tf.group(param_grad_add_ops...)
@@ -82,11 +83,11 @@ function TFFunction(params, inputs, output, sess::PyObject=tf.Session())
     # the operation that resets the gradient accumulators to zeros
     accum_zero_ops = []
     for accum in values(param_grad_accums)
-        push!(accum_zero_ops, tf.assign(accum, tf.zeros_like(accum)))
+        push!(accum_zero_ops, tf.compat.v1.assign(accum, tf.zeros_like(accum)))
     end
     accum_zero_op = tf.group(accum_zero_ops...)
 
-    sess.run(tf.variables_initializer(params))
+    sess.run(tf.compat.v1.variables_initializer(params))
     sess.run(accum_zero_op)
 
     TFFunction(sess, inputs, output,
@@ -195,14 +196,14 @@ struct FixedStepGradientDescentTFFunctionState
 end
 
 function Gen.init_update_state(conf::FixedStepGradientDescent, gen_fn::TFFunction, param_list)
-    opt = tf.train.GradientDescentOptimizer(conf.step_size)
+    opt = tf.compat.v1.train.GradientDescentOptimizer(conf.step_size)
     grads_and_vars = []
     for param in param_list
         push!(grads_and_vars,
             (tf.negative(get_param_grad_tf_var(gen_fn, param)), param))
     end
     op = opt.apply_gradients(grads_and_vars)
-    runtf(gen_fn, tf.variables_initializer(opt.variables()))
+    runtf(gen_fn, tf.compat.v1.variables_initializer(opt.variables()))
     FixedStepGradientDescentTFFunctionState(op, gen_fn)
 end
 
@@ -225,7 +226,7 @@ function Gen.init_update_state(conf::ADAM, gen_fn::TFFunction, param_list)
             (tf.negative(get_param_grad_tf_var(gen_fn, param)), param))
     end
     op = opt.apply_gradients(grads_and_vars)
-    runtf(gen_fn, tf.variables_initializer(opt.variables()))
+    runtf(gen_fn, tf.compat.v1.variables_initializer(opt.variables()))
     ADAMTFFunctionState(op, gen_fn)
 end
 
