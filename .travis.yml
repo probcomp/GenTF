@@ -9,22 +9,21 @@ os:
 julia:
   - 1.0
 
+env:
+    - PYTHON=/home/travis/build/probcomp/GenTF/tf_env/bin/python3
+
 jobs:
   include:
     - stage: test
       before_install:
+        - sudo ./install_tensorflow.sh
       script:
-        - julia -e 'using Pkg;
-                    """Use the Conda environment inside Julia, because currently
-                    nothing else works""";
-                    ENV["PYTHON"] = "";
-                    Pkg.build("PyCall");
-                    using PyCall;
-                    pyimport_conda("tensorflow", "tensorflow");
-                    Pkg.test()'
+        - julia -e 'using Pkg; Pkg.build("PyCall"); Pkg.test()'
     - stage: docs
       julia: 1.0
       os: linux
+      before_install:
+        - sudo ./install_tensorflow.sh
       script:
         - julia --project=docs/ -e 'using Pkg;
                                     Pkg.add(PackageSpec(url="https://github.com/probcomp/Gen"));
@@ -32,11 +31,9 @@ jobs:
                                     Pkg.develop(PackageSpec(path=pwd()));
                                     Pkg.instantiate();
                                     Pkg.add("PyCall");
-                                    """Use the Conda environment inside Julia,
-                                    because currently nothing else works""";
-                                    ENV["PYTHON"] = "";
                                     Pkg.build("PyCall");
                                     using PyCall;
-                                    pyimport_conda("tensorflow", "tensorflow")'
+                                    println(ENV["PYTHON"]);
+                                    println(PyCall.python)'
         - julia --project=docs/ docs/make.jl
       after_success: skip
