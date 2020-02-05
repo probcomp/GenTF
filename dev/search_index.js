@@ -85,7 +85,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "GenTF.TFFunction",
     "category": "type",
-    "text": "gen_fn = TFFunction(params::Vector{PyObject},\n                    inputs::Vector{PyObject}, output::PyObject,\n                    sess::PyObject=tf.Session())\n\nConstruct a TensorFlow generative function from elements of a TensorFlow computation graph.\n\n\n\n\n\n"
+    "text": "gen_fn = TFFunction(params::Vector{PyObject},\n                    inputs::Vector{PyObject}, output::PyObject,\n                    sess::PyObject=tf.compat.v1.Session())\n\nConstruct a TensorFlow generative function from elements of a TensorFlow computation graph.\n\n\n\n\n\n"
 },
 
 {
