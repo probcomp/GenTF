@@ -6,8 +6,8 @@ using PyCall
 @pyimport tensorflow as tf
 
 @testset "get_session" begin
-    x = tf.constant(0.)
-    sess = tf.Session()
+    x = tf.compat.v1.constant(0.)
+    sess = tf.compat.v1.Session()
     foo = TFFunction([], [], x, sess)
     @test get_session(foo) === sess
 end
@@ -16,8 +16,8 @@ end
 
     init_W = rand(Float32, 2, 3)
     
-    W = tf.get_variable("W", dtype=tf.float32, initializer=init_W)
-    x = tf.placeholder(tf.float32, shape=(3,), name="x")
+    W = tf.compat.v1.get_variable("W", dtype=tf.float32, initializer=init_W)
+    x = tf.compat.v1.placeholder(tf.float32, shape=(3,), name="x")
     y = tf.squeeze(tf.matmul(W, tf.expand_dims(x, axis=1)), axis=1)
     
     foo = TFFunction([W], [x], y)
@@ -46,9 +46,9 @@ end
 
 @testset "maximum likelihood" begin
 
-    xs = tf.placeholder(tf.float32, shape=(4,), name="xs")
-    w = tf.get_variable("w", dtype=tf.float32, initializer=Float32[0., 0.])
-    ones = tf.fill([4], tf.constant(1.0, dtype=tf.float32))
+    xs = tf.compat.v1.placeholder(tf.float32, shape=(4,), name="xs")
+    w = tf.compat.v1.get_variable("w", dtype=tf.float32, initializer=Float32[0., 0.])
+    ones = tf.fill([4], tf.compat.v1.constant(1.0, dtype=tf.float32))
     X = tf.stack([xs, ones], axis=1)
     y_means = tf.squeeze(tf.matmul(X, tf.expand_dims(w, axis=1)), axis=1)
 
@@ -81,8 +81,8 @@ end
 
 @testset "untraced evaluation" begin
     init_W = rand(Float32, 2, 3)
-    W = tf.get_variable("W2", dtype=tf.float32, initializer=init_W)
-    x = tf.placeholder(tf.float32, shape=(3,), name="x")
+    W = tf.compat.v1.get_variable("W2", dtype=tf.float32, initializer=init_W)
+    x = tf.compat.v1.placeholder(tf.float32, shape=(3,), name="x")
     y = tf.squeeze(tf.matmul(W, tf.expand_dims(x, axis=1)), axis=1)
     foo = TFFunction([W], [x], y)
     x_val = [1., 2., 3.]
