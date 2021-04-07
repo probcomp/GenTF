@@ -7,23 +7,21 @@ os:
     - linux
 
 julia:
-  - 1.0
-  - 1.5
+    - 1.0
+    - 1.5
 
 env:
     - PYTHON=/home/travis/build/probcomp/GenTF/tf_env/bin/python3
 
+before_install:
+    - sudo ./install_tensorflow.sh
+
 jobs:
   include:
     - stage: test
-      before_install:
-        - sudo ./install_tensorflow.sh
       script:
         - julia -e 'using Pkg; Pkg.build("PyCall"); Pkg.test()'
     - stage: docs
-      os: linux
-      before_install:
-        - sudo ./install_tensorflow.sh
       script:
         - julia --project=docs/ -e 'using Pkg;
                                     Pkg.develop(PackageSpec(path="$(pwd())/.."));
