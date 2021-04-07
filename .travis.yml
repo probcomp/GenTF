@@ -8,6 +8,7 @@ os:
 
 julia:
   - 1.0
+  - 1.5
 
 env:
     - PYTHON=/home/travis/build/probcomp/GenTF/tf_env/bin/python3
