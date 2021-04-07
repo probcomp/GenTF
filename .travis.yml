@@ -3,12 +3,10 @@
 
 language: julia
 
-dist:
-    - bionic
-    - focal
-
 os:
     - linux
+
+dist: bionic # Ubuntu 18.04
 
 julia:
     - 1.5
