@@ -1,9 +1,8 @@
-using Documenter, GenTF
+using Documenter
+using GenTF
 
 makedocs(
-    format = :html,
     sitename = "GenTF",
-    modules = [GenTF],
     pages = [
         "Home" => "index.md"
     ]
@@ -11,5 +10,5 @@ makedocs(
 
 deploydocs(
     repo = "github.com/probcomp/GenTF.git",
-    target = "build"
+    devbranch = "master"
 )
