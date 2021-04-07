@@ -21,7 +21,6 @@ jobs:
       script:
         - julia -e 'using Pkg; Pkg.build("PyCall"); Pkg.test()'
     - stage: docs
-      julia: 1.0
       os: linux
       before_install:
         - sudo ./install_tensorflow.sh
