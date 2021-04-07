@@ -23,15 +23,10 @@ jobs:
       script:
         - julia -e 'using Pkg; Pkg.build("PyCall"); Pkg.test()'
     - stage: docs
+      julia: 1.5
+      os: linux
       script:
-        - julia --project=docs/ -e 'using Pkg;
-                                    Pkg.develop(PackageSpec(path="$(pwd())/.."));
-                                    Pkg.develop(PackageSpec(path=pwd()));
-                                    Pkg.instantiate();
-                                    Pkg.add("PyCall");
-                                    Pkg.build("PyCall");
-                                    using PyCall;
-                                    println(ENV["PYTHON"]);
-                                    println(PyCall.python)'
+        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));
+                                               Pkg.instantiate()'
         - julia --project=docs/ docs/make.jl
       after_success: skip
